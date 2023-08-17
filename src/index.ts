@@ -123,8 +123,6 @@ wss.on("connection", async (socket, req) => {
     });
 });
 
-server.listen(61559);
-
 const saltRounds = 10;
 async function generatePasswordHash(password: string) {
     return await bcrypt.hash(password, saltRounds);
@@ -234,4 +232,11 @@ async function getUserByName(username: string) {
     return undefined;
 }
 
-loadUsers().then(console.log).catch(console.error);
+async function main() {
+    await loadUsers();
+    server.listen(61559);
+
+    return "Main function complete";
+}
+
+main().then(console.log).catch(console.error);
