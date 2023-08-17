@@ -5,11 +5,13 @@
     "dev": "tsc --watch"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.0",
     "@types/node": "^18.15.10",
     "@types/ws": "^8.5.5",
     "typescript": "^5.0.2"
   },
   "dependencies": {
+    "bcrypt": "^5.1.1",
     "ws": "^8.13.0"
   }
 }

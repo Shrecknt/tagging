@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+</head>
+
+<body>
+    <script>
+        const ws = new WebSocket("ws://localhost:61559");
+        ws.addEventListener("open", (ev) => {
+            console.log("open ev", ev);
+            ws.send("test message");
+        });
+        ws.addEventListener("close", (ev) => {
+            console.log("close ev", ev);
+        });
+        ws.addEventListener("error", (ev) => {
+            console.log("error ev", ev);
+        });
+        ws.addEventListener("message", (msg) => {
+            console.log("msg", msg);
+        });
+    </script>
+</body>
+
+</html>
