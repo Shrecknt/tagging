@@ -112,49 +112,52 @@ const server = http.createServer(async (req, res) => {
         if (success) return;
     }
 
-    switch (url.pathname) {
-        case "/test":
-            res.writeHead(200, { "Content-Type": "text/html" });
-            res.write(await fs.readFile("web/test.html"));
-            res.end();
-            break;
-        case "/login":
-            if (authorized) {
-                res.writeHead(303, { "Location": "/profile" });
-                res.write("Redirecting to /profile");
-                res.end();
-                break;
-            }
-            res.writeHead(200, { "Content-Type": "text/html" });
-            res.write(await fs.readFile("web/login.html"));
-            res.end();
-            break;
-        case "/signup":
-            if (authorized) {
-                res.writeHead(303, { "Location": "/profile" });
-                res.write("Redirecting to /profile");
-                res.end();
-                break;
-            }
-            res.writeHead(200, { "Content-Type": "text/html" });
-            res.write(await fs.readFile("web/signup.html"));
-            res.end();
-            break;
-        case "/profile":
-            res.writeHead(303, { "Location": "/login" });
-            res.write("Redirecting to /login");
-            res.end();
-            return;
-        case "/amiauthorized":
-            res.writeHead(200, { "Content-Type": "text/plain" });
-            res.write(`authorized: ${authorized ? "yes" : "no"}\nsigned in as: ${authorized ? user?.username : "none"}`);
-            res.end();
-            break;
-        default:
-            res.writeHead(404, { "Content-Type": "text/plain" });
-            res.write("404 error");
-            res.end();
-    };
+    if (url.pathname === "/amiauthorized") {
+        res.writeHead(200, { "Content-Type": "text/plain" });
+        res.write(`authorized: ${authorized ? "yes" : "no"}\nsigned in as: ${authorized ? user?.username : "none"}`);
+        res.end();
+        return;
+    }
+
+    if (authorized && (url.pathname === "/login" || url.pathname === "/signup")) {
+        res.writeHead(303, { "Location": "/profile" });
+        res.write("redirecting to /profile");
+        res.end();
+    }
+
+    if (!authorized && url.pathname === "/profile") {
+        res.writeHead(303, { "Location": "/login" });
+        res.write("redirecting to /login");
+        res.end();
+    }
+
+    if (url.pathname === "/") url.pathname = "/index.html";
+    const webPath = path.resolve("web/");
+    let requestPath = path.join(webPath, url.pathname ?? "/index.html");
+    if (!/\.[a-zA-Z]+/g.test(requestPath)) requestPath += ".html";
+    if (!requestPath.startsWith(webPath)) {
+        return;
+    }
+    try {
+        if (!(await fs.stat(requestPath)).isFile()) {
+            throw 0;
+        }
+    } catch (e) {
+        let file = await fs.readFile("web/404.html");
+        res.writeHead(404, { "Content-Type": "text/html" });
+        res.write(file);
+        res.end();
+        return;
+    }
+
+    let file: Buffer | string = await fs.readFile(requestPath);
+    const mimeType = mime.getType(requestPath);
+    if (mimeType === "text/html") {
+        file = file.toString();
+    }
+    res.writeHead(200, { "Content-Type": mimeType ?? "text/plain" });
+    res.write(file);
+    res.end();
 });
 
 async function handleAuthorizedRequest(
