@@ -21,6 +21,7 @@
             padding: 32px;
             font-family: Arial, Helvetica, sans-serif;
             border-radius: 8px;
+            position: relative;
         }
 
         input {
@@ -35,16 +36,79 @@
             background-color: #333;
             color: white;
         }
+
+        input[type=submit] {
+            cursor: pointer;
+            transition: background-color .1s;
+        }
+
+        input[type=submit]:hover {
+            background-color: #444;
+        }
+
+        #error {
+            width: 256px;
+        }
+
+        .error {
+            width: 256px;
+            min-height: 32px;
+            background-color: rgba(255, 127, 0, .5);
+            border: 1px solid rgba(255, 127, 0, .7);
+            border-radius: 8px;
+            color: white;
+            display: inline-block;
+            box-sizing: border-box;
+            padding: 8px;
+            font-size: 12px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .alternative {
+            position: absolute;
+            bottom: 32px;
+            right: 32px;
+            color: #aaf;
+        }
     </style>
 </head>
 
 <body>
     <form method="post">
-        <h1>Account Creation</h1>
-        <input type="username" name="username" placeholder="Username" required><br />
-        <input type="password" name="password" placeholder="Password" required><br />
+        <h1>Create Account</h1>
+        <div id="error"></div>
+        <input type="username" name="username" placeholder="Username" title="3 to 16 non-whitespace ascii characters"
+            pattern="[!-~]{3,16}" required><br />
+        <input type="password" name="password" placeholder="Password" title="5 to 32 non-whitespace ascii characters"
+            pattern="[!-~]{5,32}" required><br />
         <input type="submit" value="Create Account">
+        <a class="alternative" href="/login">Login</a>
     </form>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get("error");
+        const username = urlParams.get("username");
+        if (error !== null) {
+            const errorBox = document.getElementById("error");
+            const errorElement = document.createElement("div");
+            errorElement.classList.add("error");
+            switch (error) {
+                case "0":
+                    errorElement.innerText = "Invalid username or password";
+                    break;
+                case "1":
+                    errorElement.innerText = "User with same name already exists";
+                    break;
+                default:
+                    errorElement.innerText = "Unknown error";
+            }
+            errorBox.appendChild(errorElement);
+        }
+        if (username !== null) {
+            const usernameElement = document.getElementById("username");
+            usernameElement.value = username;
+        }
+    </script>
 </body>
 
 </html>

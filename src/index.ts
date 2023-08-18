@@ -3,34 +3,53 @@ import fs from "fs/promises";
 import WebSocket from "ws";
 import path from "path";
 import bcrypt from "bcrypt";
-import { write } from "fs";
+import mime from "mime";
+import URL from "url";
 
 const server = http.createServer(async (req, res) => {
+    const url = URL.parse(req.url ?? "/");
+
     const ip = req.headers["cf-connecting-ip"]?.toString() ?? "not-cloudflare";
 
     const cookies = parseCookies(req.headers["cookie"]);
     const [authorized, user] = await checkAuthorization(cookies["Authorization"]);
 
+    const highContentEndpoints = ["/upload"];
+    const isHighContentEndpoint = highContentEndpoints.includes(url.pathname ?? "/");
+
+    if (isHighContentEndpoint && !authorized) {
+        res.writeHead(403, { "Content-Type": "text/plain" });
+        res.write("Authorization is required for this endpoint");
+        res.end();
+        return;
+    }
+
     if (req.method === "POST") {
         let body = "";
         req.on("data", (chunk) => {
             body += chunk;
-            if (body.length > 1e8) {
+            if (isHighContentEndpoint) {
+                if (body.length > 1e8) {
+                    console.log("Connection destroyed");
+                    req.socket.destroy();
+                }
+            } else if (body.length > 1e6) {
                 console.log("Connection destroyed");
                 req.socket.destroy();
             }
         });
         req.on("end", async () => {
             const data = parseFormData(body);
-            // console.log("data", data);
-            if (req.url === "/signup" && !authorized) {
+            if (url.pathname === "/signup" && !authorized) {
                 const { username, password } = data;
                 if (username === undefined || password === undefined) {
+                    res.writeHead(303, { "Location": "/signup?error=0&username=" + encodeURIComponent(username ?? "") });
                     res.write("Invalid username or password");
                     res.end();
                     return;
                 }
                 if (await getUserByName(username) !== undefined) {
+                    res.writeHead(303, { "Location": "/signup?error=1&username=" + encodeURIComponent(username ?? "") });
                     res.write("User with same name already exists");
                     res.end();
                     return;
@@ -38,20 +57,23 @@ const server = http.createServer(async (req, res) => {
                 const hashedPassword = await generatePasswordHash(password);
                 let user = await writeUser(username, hashedPassword, new Set([ip]));
                 const sessionToken = createSession(user.userid, 3600000);
-                res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly` });
+                res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
                 res.write("Account successfully created");
                 res.end();
+                return;
             }
 
-            if (req.url === "/login" && !authorized) {
+            if (url.pathname === "/login" && !authorized) {
                 const { username, password } = data;
                 if (username === undefined || password === undefined) {
+                    res.writeHead(303, { "Location": "/login?error=0&username=" + encodeURIComponent(username ?? "") });
                     res.write("Invalid username or password");
                     res.end();
                     return;
                 }
                 const user = await getUserByName(username);
                 if (user === undefined) {
+                    res.writeHead(303, { "Location": "/login?error=1&username=" + encodeURIComponent(username ?? "") });
                     res.write("No account was found with the given username");
                     res.end();
                     return;
@@ -59,6 +81,7 @@ const server = http.createServer(async (req, res) => {
                 const passwordHash = user.password;
                 const correctPassword = await checkPasswordHash(password, passwordHash);
                 if (!correctPassword) {
+                    res.writeHead(303, { "Location": "/login?error=2&username=" + encodeURIComponent(username ?? "") });
                     res.write("Incorrect password");
                     res.end();
                     return;
@@ -66,31 +89,62 @@ const server = http.createServer(async (req, res) => {
 
                 const sessionToken = createSession(user.userid, 3600000);
 
-                res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly` });
-                // res.write("Sign in successful!");
+                res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
+                res.write("Sign in successful!");
                 res.end();
+                return;
             }
+
+
+            res.writeHead(404, { "Content-Type": "text/plain" });
+            res.write("Unknown endpoint for POST request and current state");
+            res.end();
         });
 
         return;
     }
 
-    switch (req.url) {
+    if (authorized) {
+        if (user === undefined) {
+            return;
+        }
+        const success = await handleAuthorizedRequest(req, res, ip, cookies, user);
+        if (success) return;
+    }
+
+    switch (url.pathname) {
         case "/test":
             res.writeHead(200, { "Content-Type": "text/html" });
             res.write(await fs.readFile("web/test.html"));
             res.end();
             break;
         case "/login":
+            if (authorized) {
+                res.writeHead(303, { "Location": "/profile" });
+                res.write("Redirecting to /profile");
+                res.end();
+                break;
+            }
             res.writeHead(200, { "Content-Type": "text/html" });
             res.write(await fs.readFile("web/login.html"));
             res.end();
             break;
         case "/signup":
+            if (authorized) {
+                res.writeHead(303, { "Location": "/profile" });
+                res.write("Redirecting to /profile");
+                res.end();
+                break;
+            }
             res.writeHead(200, { "Content-Type": "text/html" });
             res.write(await fs.readFile("web/signup.html"));
             res.end();
             break;
+        case "/profile":
+            res.writeHead(303, { "Location": "/login" });
+            res.write("Redirecting to /login");
+            res.end();
+            return;
         case "/amiauthorized":
             res.writeHead(200, { "Content-Type": "text/plain" });
             res.write(`authorized: ${authorized ? "yes" : "no"}\nsigned in as: ${authorized ? user?.username : "none"}`);
@@ -102,6 +156,38 @@ const server = http.createServer(async (req, res) => {
             res.end();
     };
 });
+
+async function handleAuthorizedRequest(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    ip: string,
+    cookies: { [key: string]: string | undefined },
+    user: User
+): Promise<boolean> {
+    const url = URL.parse(req.url ?? "/");
+    if (url.pathname === "/") url.pathname = "/index.html";
+    const authorizedWebPath = path.resolve("authorized_web/");
+    let requestPath = path.join(authorizedWebPath, url.pathname ?? "/index.html");
+    if (!/\.[a-zA-Z]+/g.test(requestPath)) requestPath += ".html";
+    if (!requestPath.startsWith(authorizedWebPath)) {
+        return false;
+    }
+    try {
+        if (!(await fs.stat(requestPath)).isFile()) {
+            return false;
+        }
+    } catch (e) { return false; }
+
+    let file: Buffer | string = await fs.readFile(requestPath);
+    const mimeType = mime.getType(requestPath);
+    if (mimeType === "text/html") {
+        file = file.toString();
+    }
+    res.writeHead(200, { "Content-Type": mimeType ?? "text/plain" });
+    res.write(file);
+    res.end();
+    return true;
+}
 
 function parseFormData(str: string | undefined) {
     return (str ?? "").split("&").map(item => item.trim().split("=")).reduce((acc, val) => {
