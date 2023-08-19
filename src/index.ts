@@ -5,6 +5,7 @@ import path from "path";
 import bcrypt from "bcrypt";
 import mime from "mime";
 import URL from "url";
+import { handleWebsocketMessage } from "./websocket";
 
 const server = http.createServer(async (req, res) => {
     const url = URL.parse(req.url ?? "/");
@@ -203,12 +204,13 @@ const wss = new WebSocket.Server({ server });
 
 wss.on("connection", async (socket, req) => {
     const cookies = parseCookies(req.headers["cookie"]);
-    console.log("new connection", cookies);
+    const url = URL.parse(req.url ?? "/");
+    // console.log("new connection", cookies);
     const [authorized, user] = await checkAuthorization(cookies["Authorization"]);
 
     socket.on("message", (data, isBinary) => {
-        console.log("new message", isBinary ? data : data.toString());
-        socket.send(data);
+        // console.log("new message", isBinary ? data : data.toString());
+        handleWebsocketMessage(socket, url, cookies, authorized, user, data, isBinary);
     });
 });
 
@@ -263,7 +265,7 @@ function createSession(userId: string, expiresIn: number) {
 
 setInterval(() => {
     for (let session in accessTokens) {
-        if (accessTokens[session]?.expires ?? 0 < Date.now()) {
+        if ((accessTokens[session]?.expires ?? 0) < Date.now()) {
             delete accessTokens[session];
         }
     }
