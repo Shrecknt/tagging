@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+
+    <style>
+        body {
+            background-color: #222;
+            color: white;
+        }
+
+        form {
+            width: 256px;
+            height: 320px;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.2);
+            margin: auto;
+            padding: 32px;
+            font-family: Arial, Helvetica, sans-serif;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        input {
+            width: 256px;
+            padding: 8px;
+            border: none;
+            outline: none;
+            box-sizing: border-box;
+            margin-top: 8px;
+            height: 32px;
+            border-radius: 8px;
+            background-color: #333;
+            color: white;
+        }
+
+        input[type=checkbox] {
+            cursor: pointer;
+            width: 24px;
+            height: 24px;
+            float: left;
+        }
+
+        span {
+            float: left;
+            line-height: 42px;
+            margin-bottom: -8px;
+            margin-left: 4px;
+        }
+
+        input[type=submit] {
+            cursor: pointer;
+            transition: background-color .1s;
+        }
+
+        input[type=submit]:hover {
+            background-color: #444;
+        }
+
+        #error {
+            width: 256px;
+        }
+
+        .error {
+            width: 256px;
+            min-height: 32px;
+            background-color: rgba(255, 127, 0, .5);
+            border: 1px solid rgba(255, 127, 0, .7);
+            border-radius: 8px;
+            color: white;
+            display: inline-block;
+            box-sizing: border-box;
+            padding: 8px;
+            font-size: 12px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <form method="post" enctype="multipart/form-data">
+        <h1>Upload File</h1>
+        <div id="error"></div>
+        <input type="file" name="uploadFile" id="uploadFile" required><br />
+        <input type="checkbox" name="public" checked> <span>Public</span><br />
+        <input type="submit" value="Upload"><br />
+    </form>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get("error");
+        if (error !== null) {
+            const errorBox = document.getElementById("error");
+            const errorElement = document.createElement("div");
+            errorElement.classList.add("error");
+            switch (error) {
+                default:
+                    errorElement.innerText = "Unknown error";
+            }
+            errorBox.appendChild(errorElement);
+        }
+    </script>
+</body>
+
+</html>

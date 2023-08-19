@@ -1,16 +1,19 @@
 import http from "http";
 import fs from "fs/promises";
+import fsSync from "fs";
 import WebSocket from "ws";
 import path from "path";
 import bcrypt from "bcrypt";
 import mime from "mime";
 import URL from "url";
-import { handleWebsocketMessage } from "./websocket";
+import formidable from "formidable";
+import { handleWebsocketMessage, writeUserFile } from "./websocket";
 
 const server = http.createServer(async (req, res) => {
     const url = URL.parse(req.url ?? "/");
 
     const ip = req.headers["cf-connecting-ip"]?.toString() ?? "not-cloudflare";
+    // console.log("ip", ip);
 
     const cookies = parseCookies(req.headers["cookie"]);
     const [authorized, user] = await checkAuthorization(cookies["Authorization"]);
@@ -26,90 +29,124 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === "POST") {
-        let body = "";
-        req.on("data", (chunk) => {
-            body += chunk;
-            if (isHighContentEndpoint) {
-                if (body.length > 1e8) {
-                    console.log("Connection destroyed");
-                    req.socket.destroy();
-                }
-            } else if (body.length > 1e6) {
-                console.log("Connection destroyed");
-                req.socket.destroy();
-            }
-        });
-        req.on("end", async () => {
-            const data = parseFormData(body);
-            if (url.pathname === "/signup" && !authorized) {
-                const { username, password } = data;
-                if (username === undefined || password === undefined) {
-                    res.writeHead(303, { "Location": "/signup?error=0&username=" + encodeURIComponent(username ?? "") });
-                    res.write("Invalid username or password");
-                    res.end();
-                    return;
-                }
-                if (await getUserByName(username) !== undefined) {
-                    res.writeHead(303, { "Location": "/signup?error=1&username=" + encodeURIComponent(username ?? "") });
-                    res.write("User with same name already exists");
-                    res.end();
-                    return;
-                }
-                const hashedPassword = await generatePasswordHash(password);
-                let user = await writeUser(username, hashedPassword, new Set([ip]));
-                const sessionToken = createSession(user.userid, 3600000);
-                res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
-                res.write("Account successfully created");
-                res.end();
-                return;
-            }
-
-            if (url.pathname === "/login" && !authorized) {
-                const { username, password } = data;
-                if (username === undefined || password === undefined) {
-                    res.writeHead(303, { "Location": "/login?error=0&username=" + encodeURIComponent(username ?? "") });
-                    res.write("Invalid username or password");
-                    res.end();
-                    return;
-                }
-                const user = await getUserByName(username);
-                if (user === undefined) {
-                    res.writeHead(303, { "Location": "/login?error=1&username=" + encodeURIComponent(username ?? "") });
-                    res.write("No account was found with the given username");
-                    res.end();
-                    return;
-                }
-                const passwordHash = user.password;
-                const correctPassword = await checkPasswordHash(password, passwordHash);
-                if (!correctPassword) {
-                    res.writeHead(303, { "Location": "/login?error=2&username=" + encodeURIComponent(username ?? "") });
-                    res.write("Incorrect password");
-                    res.end();
-                    return;
-                }
-
-                const sessionToken = createSession(user.userid, 3600000);
-
-                res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
-                res.write("Sign in successful!");
-                res.end();
-                return;
-            }
-
-
-            res.writeHead(404, { "Content-Type": "text/plain" });
-            res.write("Unknown endpoint for POST request and current state");
+        const form = formidable({});
+        let fields: formidable.Fields;
+        let files: formidable.Files;
+        try {
+            [fields, files] = await form.parse(req);
+        } catch (err) {
+            console.error(err);
+            res.writeHead(400, { "Content-Type": "text/plain" });
             res.end();
-        });
+            return;
+        }
 
-        return;
+        // console.log("fields", fields /*, "files", files*/ );
+
+        if (url.pathname === "/signup" && !authorized) {
+            const { username, password } = fields;
+            if (username[0] === undefined
+                || password[0] === undefined
+                || username[0].includes("\n")
+                || password[0].includes("\n")
+                || !/^[!-~]{3,16}$/m.test(username[0])
+                || !/^[!-~]{5,32}$/m.test(password[0])
+            ) {
+                res.writeHead(303, { "Location": "/signup?error=0&username=" + encodeURIComponent(username[0] ?? "") });
+                res.write("Invalid username or password");
+                res.end();
+                return;
+            }
+            if (await getUserByName(username[0]) !== undefined) {
+                res.writeHead(303, { "Location": "/signup?error=1&username=" + encodeURIComponent(username[0] ?? "") });
+                res.write("User with same name already exists");
+                res.end();
+                return;
+            }
+            const hashedPassword = await generatePasswordHash(password[0]);
+            let user = await writeUser(username[0], hashedPassword, new Set([ip]));
+            const sessionToken = createSession(user.userid, 3600000);
+            res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
+            res.write("Account successfully created");
+            res.end();
+            return;
+        }
+
+        if (url.pathname === "/login" && !authorized) {
+            const { username, password } = fields;
+            if (username[0] === undefined || password[0] === undefined) {
+                res.writeHead(303, { "Location": "/login?error=0&username=" + encodeURIComponent(username[0] ?? "") });
+                res.write("Invalid username or password");
+                res.end();
+                return;
+            }
+            const user = await getUserByName(username[0]);
+            if (user === undefined) {
+                res.writeHead(303, { "Location": "/login?error=1&username=" + encodeURIComponent(username[0] ?? "") });
+                res.write("No account was found with the given username");
+                res.end();
+                return;
+            }
+            const passwordHash = user.password;
+            const correctPassword = await checkPasswordHash(password[0], passwordHash);
+            if (!correctPassword) {
+                res.writeHead(303, { "Location": "/login?error=2&username=" + encodeURIComponent(username[0] ?? "") });
+                res.write("Incorrect password");
+                res.end();
+                return;
+            }
+
+            const sessionToken = createSession(user.userid, 3600000);
+
+            res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
+            res.write("Sign in successful!");
+            res.end();
+            return;
+        }
+
+        if (url.pathname === "/upload" && authorized) {
+            if (user === undefined) return;
+
+            // console.log("files[\"uploadFile\"]", files["uploadFile"]);
+            const uploadedFile = files["uploadFile"];
+            if (uploadedFile.length !== 1) {
+                res.writeHead(303, { "Location": "/upload" });
+                res.write("Must provide 1 file");
+                res.end();
+                return;
+            }
+            const file = uploadedFile[0];
+
+            if (file.size > 1000000000) {
+                req.socket.destroy();
+                return;
+            }
+
+            // console.log(file.filepath);
+            const url = await writeUserFile(user.userid, file.originalFilename ?? "unknown", [], file.filepath, fields["public"][0] === "on");
+            // console.log("Uploaded to " + url);
+            res.writeHead(303, { "Location": url });
+            res.write("Upload successful!");
+            res.end();
+            return;
+        }
+
+
+        res.writeHead(404, { "Content-Type": "text/plain" });
+        res.write("Unknown endpoint for POST request and current state");
+        res.end();
     }
 
     if (authorized) {
         if (user === undefined) {
             return;
         }
-        const success = await handleAuthorizedRequest(req, res, ip, cookies, user);
+        let success = await handleAuthorizedRequest(req, res, ip, cookies, user);
+        if (success) return;
+    }
+
+    {
+        let success = await handleUserFileRequest(req, res, url, ip, cookies, user);
         if (success) return;
     }
 
@@ -193,6 +230,47 @@ async function handleAuthorizedRequest(
     return true;
 }
 
+async function handleUserFileRequest(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    url: URL.UrlWithStringQuery,
+    ip: string,
+    cookies: { [key: string]: string | undefined },
+    user: User | undefined
+): Promise<boolean> {
+    // url must be /file/*
+    // console.log("getting file");
+
+    let pathNameArr = (url.pathname ?? "/").split("/");
+    if (pathNameArr.splice(0, 2)[1] !== "file") return false;
+    if (pathNameArr.length !== 2) return false;
+    const fileUserId = pathNameArr[0];
+    const fileId = pathNameArr[1];
+
+    // console.log(fileUserId, fileId);
+
+    const userFilesPath = path.resolve("user_files/");
+    const requestDataPath = path.join(userFilesPath, fileUserId + "/", "data/", fileId);
+    const requestRawPath = path.join(userFilesPath, fileUserId + "/", "raw/", fileId);
+    if (!requestDataPath.startsWith(path.join(userFilesPath, fileUserId))) return false;
+    try {
+        if (!(await fs.stat(requestDataPath)).isFile()) {
+            throw 0;
+        }
+    } catch (e) { return false; }
+
+    const metaData = JSON.parse((await fs.readFile(requestDataPath)).toString());
+    if (!metaData.public && user?.userid !== fileUserId) return false;
+    const mimeType = metaData.mimeType;
+    const fileName = metaData.fileName;
+
+    res.writeHead(200, { "Content-Type": mimeType, "Content-Disposition": `filename="${encodeURIComponent(fileName)}"` });
+    res.write(await fs.readFile(requestRawPath));
+    res.end();
+
+    return true;
+}
+
 function parseFormData(str: string | undefined) {
     return (str ?? "").split("&").map(item => item.trim().split("=")).reduce((acc, val) => {
         acc[val[0]] = decodeURIComponent(val.splice(1).join("=")) || undefined;
@@ -250,7 +328,7 @@ async function checkAuthorization(token: string | undefined): Promise<[boolean, 
 const accessTokenChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 function createSession(userId: string, expiresIn: number) {
     const user = users[userId];
-    if (user == undefined) throw new Error("Unknown user");
+    if (user === undefined) throw new Error("Unknown user");
     let sessionToken = "";
     do {
         sessionToken = Array.from(Array(128), () => accessTokenChars[Math.floor(Math.random() * accessTokenChars.length)]).join("");
@@ -318,12 +396,14 @@ async function getUserByName(username: string) {
     for (let userId in users) {
         let user = users[userId];
         if (user === undefined) continue;
-        if (user.username === username) return user;
+        if (user.username.toLowerCase() === username.toLowerCase()) return user;
     }
     return undefined;
 }
 
 async function main() {
+    if (!fsSync.existsSync("users/")) await fs.mkdir("users");
+    if (!fsSync.existsSync("user_files/")) await fs.mkdir("user_files");
     await loadUsers();
     server.listen(61559);
 
