@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload</title>
+    <link rel="shortcut icon" href="/favicon.ico">
+
+    <style>
+        body {
+            background-color: #222;
+            color: white;
+            text-align: center;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Uploaded</h1>
+    <noscript>JavaScript must be enabled to continue</noscript>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const userid = urlParams.get("userid");
+        const fileid = urlParams.get("fileid");
+        const url = `/file/${userid}/${fileid}`;
+
+        const elem = document.createElement("h3");
+        elem.innerText = `Resource uploaded to ${url}`;
+        document.body.appendChild(elem);
+
+        window.location = `https://${window.location.host}${url}`;
+    </script>
+</body>
+
+</html>

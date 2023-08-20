@@ -1,8 +1,11 @@
-import fs from "fs/promises";
-import path from "path";
-import URL from "url";
+import fs from "node:fs/promises";
+import path from "node:path";
+import URL from "node:url";
+import EventEmitter from "node:events";
 import WebSocket from "ws";
 import mime from "mime";
+
+export const websocketEvents = new EventEmitter();
 
 type User = { username: string, userid: string, password: string, ips: Set<string> };
 type Packet = { type?: string, value?: any };
@@ -27,6 +30,14 @@ export async function handleWebsocketMessage(
         });
         const returnValue = { "type": "searchResults", "value": results, "query": data.value } as Packet;
         socket.send(JSON.stringify(returnValue));
+    }
+
+    if (data.type === "listenFile") {
+        const listener = (msg: string) => {};
+        websocketEvents.on("message", listener);
+        socket.once("close", () => {
+            websocketEvents.removeListener("message", listener);
+        });
     }
 }
 
@@ -127,8 +138,7 @@ async function getUserFiles(userid: string): Promise<UserFile[]> {
     return results;
 }
 
-const fileIdChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-export async function writeUserFile(userid: string, fileName: string, tags: string[], filePath: string, _public: boolean, mimeType?: string) {
+export async function generateUserFileId(userid: string) {
     const userFilesDir = path.join("user_files/", userid);
     const userFilesRawDir = path.join(userFilesDir, "raw");
     const userFilesDataDir = path.join(userFilesDir, "data");
@@ -146,6 +156,15 @@ export async function writeUserFile(userid: string, fileName: string, tags: stri
     do {
         fileId = Array.from(Array(32), () => fileIdChars[Math.floor(Math.random() * fileIdChars.length)]).join("");
     } while (userFiles.includes(fileId));
+
+    return fileId;
+}
+
+const fileIdChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+export async function writeUserFile(fileId: string, userid: string, fileName: string, tags: string[], filePath: string, _public: boolean, mimeType?: string) {
+    const userFilesDir = path.join("user_files/", userid);
+    const userFilesRawDir = path.join(userFilesDir, "raw");
+    const userFilesDataDir = path.join(userFilesDir, "data");
 
     const metaData = {
         fileName,

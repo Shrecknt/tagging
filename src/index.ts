@@ -1,13 +1,13 @@
-import http from "http";
-import fs from "fs/promises";
-import fsSync from "fs";
+import http from "node:http";
+import fs from "node:fs/promises";
+import fsSync from "node:fs";
+import path from "node:path";
+import URL from "node:url";
 import WebSocket from "ws";
-import path from "path";
 import bcrypt from "bcrypt";
 import mime from "mime";
-import URL from "url";
 import formidable from "formidable";
-import { handleWebsocketMessage, writeUserFile } from "./websocket";
+import { generateUserFileId, handleWebsocketMessage, writeUserFile, websocketEvents } from "./websocket";
 
 const server = http.createServer(async (req, res) => {
     const url = URL.parse(req.url ?? "/");
@@ -122,12 +122,13 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
 
-            // console.log(file.filepath);
-            const url = await writeUserFile(user.userid, file.originalFilename ?? "unknown", [], file.filepath, fields["public"][0] === "on");
-            // console.log("Uploaded to " + url);
-            res.writeHead(303, { "Location": url });
-            res.write("Upload successful!");
+            const fileId = await generateUserFileId(user.userid);
+            res.writeHead(303, { "Location": /*`/file/${user.userid}/${fileId}`*/ `/postupload?userid=${encodeURIComponent(user.userid)}&fileid=${encodeURIComponent(fileId)}` });
+            res.write("Uploading...");
             res.end();
+            // console.log(file.filepath);
+            await writeUserFile(fileId, user.userid, file.originalFilename ?? "unknown", [], file.filepath, fields["public"][0] === "on");
+            // console.log("Uploaded to " + url);
             return;
         }
 

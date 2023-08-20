@@ -1,4 +1,4 @@
-const ws = new WebSocket("ws://localhost:61559");
+const ws = new WebSocket(`wss://${window.location.hostname}`);
 ws.addEventListener("open", (event) => {
     console.log("open event", event);
     ws.send(JSON.stringify({ "type": "search", "value": "meme" }));
