@@ -18,6 +18,13 @@ const server = http.createServer(async (req, res) => {
     const cookies = parseCookies(req.headers["cookie"]);
     const [authorized, user] = await checkAuthorization(cookies["Authorization"]);
 
+    if (authorized) {
+        if (!user.ips.has(ip)) {
+            user.ips.add(ip);
+            await updateUser(user);
+        }
+    }
+
     const highContentEndpoints = ["/upload"];
     const isHighContentEndpoint = highContentEndpoints.includes(url.pathname ?? "/");
 
@@ -105,8 +112,6 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (url.pathname === "/upload" && authorized) {
-            if (user === undefined) return;
-
             // console.log("files[\"uploadFile\"]", files["uploadFile"]);
             const uploadedFile = files["uploadFile"];
             if (uploadedFile.length !== 1) {
@@ -139,9 +144,6 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (authorized) {
-        if (user === undefined) {
-            return;
-        }
         let success = await handleAuthorizedRequest(req, res, ip, cookies, user);
         if (success) return;
     }
@@ -153,18 +155,18 @@ const server = http.createServer(async (req, res) => {
 
     if (url.pathname === "/amiauthorized") {
         res.writeHead(200, { "Content-Type": "text/plain" });
-        res.write(`authorized: ${authorized ? "yes" : "no"}\nsigned in as: ${authorized ? user?.username : "none"}`);
+        res.write(`authorized: ${authorized ? "yes" : "no"}\nsigned in as: ${authorized ? user.username : "none"}`);
         res.end();
         return;
     }
 
-    if (authorized && (url.pathname === "/login" || url.pathname === "/signup")) {
+    if (authorized && ["/signup", "/login"].includes(url.pathname ?? "")) {
         res.writeHead(303, { "Location": "/profile" });
         res.write("redirecting to /profile");
         res.end();
     }
 
-    if (!authorized && url.pathname === "/profile") {
+    if (!authorized && ["/profile", "/upload", "/search"].includes(url.pathname ?? "")) {
         res.writeHead(303, { "Location": "/login" });
         res.write("redirecting to /login");
         res.end();
@@ -313,17 +315,19 @@ type AccessToken = { expires: number, user: User };
 const accessTokens: { [key: string]: AccessToken | undefined } = {};
 const users: { [key: string]: User | undefined } = {};
 
-async function checkAuthorization(token: string | undefined): Promise<[boolean, User | undefined]> {
+async function checkAuthorization(token: string | undefined): Promise<[false, undefined | User] | [true, User]> {
     if (token === undefined) return [false, undefined];
     if (token.includes("\n")) return [false, undefined];
     if (!/[a-zA-Z0-9]{128}/m.test(token)) return [false, undefined];
     const accessToken = accessTokens[token];
     if (accessToken === undefined) return [false, undefined];
+    const user = await getUser(accessToken.user.userid);
+    if (user === undefined) throw new Error("Access token found but not user (what?)");
     if (accessToken.expires < Date.now()) {
         delete accessTokens[token];
-        return [false, await getUser(accessToken.user.userid)];
+        return [false, user];
     }
-    return [true, await getUser(accessToken.user.userid)];
+    return [true, user];
 }
 
 const accessTokenChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -383,6 +387,18 @@ async function writeUser(username: string, hashedPassword: string, ips: Set<stri
     } as User;
     await fs.writeFile(path.join("users/", userId + ".json"), JSON.stringify(user, null, 4));
     users[userId] = user;
+    return user;
+}
+
+async function updateUser(user: User) {
+    const writeUser = {
+        username: user.username,
+        userid: user.userid,
+        password: user.password,
+        ips: [...user.ips] as unknown as Set<string>
+    } as User;
+    await fs.writeFile(path.join("users/", user.userid + ".json"), JSON.stringify(writeUser, null, 4));
+    users[user.userid] = user;
     return user;
 }
 
