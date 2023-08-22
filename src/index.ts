@@ -4,7 +4,6 @@ import fsSync from "node:fs";
 import path from "node:path";
 import URL from "node:url";
 import WebSocket from "ws";
-import bcrypt from "bcrypt";
 import mime from "mime";
 import formidable from "formidable";
 import { generateUserFileId, handleWebsocketMessage, writeUserFile, websocketEvents } from "./websocket";
@@ -299,7 +298,7 @@ async function main() {
 
     // Change this to `true` if you want
     // to move legacy user json files to
-    // a databse.
+    // a database.
     const convertOldUsers = false;
     if (convertOldUsers) {
         const oldUsersDir = await fs.readdir("users");
