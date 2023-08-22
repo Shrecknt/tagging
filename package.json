@@ -6,16 +6,19 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",
+    "@types/formidable": "^3.4.1",
     "@types/mime": "^3.0.1",
     "@types/node": "^18.15.10",
+    "@types/pg": "^8.10.2",
     "@types/ws": "^8.5.5",
-    "typescript": "^5.0.2",
-    "@types/formidable": "^3.4.1"
+    "typescript": "^5.0.2"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
+    "dotenv": "^16.3.1",
     "formidable": "^3.5.0",
     "mime": "^3.0.0",
+    "pg": "^8.11.3",
     "ws": "^8.13.0"
   }
 }

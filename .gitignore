@@ -5,3 +5,4 @@ users/*
 user_files/*
 raw/
 data/
+.env

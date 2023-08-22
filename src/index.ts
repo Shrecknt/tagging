@@ -8,12 +8,12 @@ import bcrypt from "bcrypt";
 import mime from "mime";
 import formidable from "formidable";
 import { generateUserFileId, handleWebsocketMessage, writeUserFile, websocketEvents } from "./websocket";
+import { User, users } from "./database";
 
 const server = http.createServer(async (req, res) => {
     const url = URL.parse(req.url ?? "/");
 
-    const ip = req.headers["cf-connecting-ip"]?.toString() ?? "not-cloudflare";
-    // console.log("ip", ip);
+    const ip = req.headers["cf-connecting-ip"]?.toString() ?? req.headers["x-forwarded-for"]?.toString() ?? "unknown";
 
     const cookies = parseCookies(req.headers["cookie"]);
     const [authorized, user] = await checkAuthorization(cookies["Authorization"]);
@@ -21,7 +21,7 @@ const server = http.createServer(async (req, res) => {
     if (authorized) {
         if (!user.ips.has(ip)) {
             user.ips.add(ip);
-            await updateUser(user);
+            await user.writeChanges();
         }
     }
 
@@ -48,8 +48,6 @@ const server = http.createServer(async (req, res) => {
             return;
         }
 
-        // console.log("fields", fields /*, "files", files*/ );
-
         if (url.pathname === "/signup" && !authorized) {
             const { username, password } = fields;
             if (username[0] === undefined
@@ -64,15 +62,15 @@ const server = http.createServer(async (req, res) => {
                 res.end();
                 return;
             }
-            if (await getUserByName(username[0]) !== undefined) {
+            if (await User.fromUsername(username[0]) !== undefined) {
                 res.writeHead(303, { "Location": "/signup?error=1&username=" + encodeURIComponent(username[0] ?? "") });
                 res.write("User with same name already exists");
                 res.end();
                 return;
             }
             const hashedPassword = await generatePasswordHash(password[0]);
-            let user = await writeUser(username[0], hashedPassword, new Set([ip]));
-            const sessionToken = createSession(user.userid, 3600000);
+            let user = await new User(username[0], hashedPassword).writeChanges();
+            const sessionToken = createSession(user.userId, 3600000);
             res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
             res.write("Account successfully created");
             res.end();
@@ -87,7 +85,7 @@ const server = http.createServer(async (req, res) => {
                 res.end();
                 return;
             }
-            const user = await getUserByName(username[0]);
+            const user = await User.fromUsername(username[0]);
             if (user === undefined) {
                 res.writeHead(303, { "Location": "/login?error=1&username=" + encodeURIComponent(username[0] ?? "") });
                 res.write("No account was found with the given username");
@@ -103,7 +101,7 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
 
-            const sessionToken = createSession(user.userid, 3600000);
+            const sessionToken = createSession(user.userId, 3600000);
 
             res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
             res.write("Sign in successful!");
@@ -112,7 +110,6 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (url.pathname === "/upload" && authorized) {
-            // console.log("files[\"uploadFile\"]", files["uploadFile"]);
             const uploadedFile = files["uploadFile"];
             if (uploadedFile.length !== 1) {
                 res.writeHead(303, { "Location": "/upload" });
@@ -127,12 +124,12 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
 
-            const fileId = await generateUserFileId(user.userid);
-            res.writeHead(303, { "Location": /*`/file/${user.userid}/${fileId}`*/ `/postupload?userid=${encodeURIComponent(user.userid)}&fileid=${encodeURIComponent(fileId)}` });
+            const fileId = await generateUserFileId(user.userId);
+            res.writeHead(303, { "Location": /*`/file/${user.userid}/${fileId}`*/ `/postupload?userid=${encodeURIComponent(user.userId)}&fileid=${encodeURIComponent(fileId)}` });
             res.write("Uploading...");
             res.end();
             // console.log(file.filepath);
-            await writeUserFile(fileId, user.userid, file.originalFilename ?? "unknown", [], file.filepath, fields["public"][0] === "on");
+            await writeUserFile(fileId, user.userId, file.originalFilename ?? "unknown", [], file.filepath, fields["public"][0] === "on");
             // console.log("Uploaded to " + url);
             return;
         }
@@ -242,7 +239,6 @@ async function handleUserFileRequest(
     user: User | undefined
 ): Promise<boolean> {
     // url must be /file/*
-    // console.log("getting file");
 
     let pathNameArr = (url.pathname ?? "/").split("/");
     if (pathNameArr.splice(0, 2)[1] !== "file") return false;
@@ -263,7 +259,7 @@ async function handleUserFileRequest(
     } catch (e) { return false; }
 
     const metaData = JSON.parse((await fs.readFile(requestDataPath)).toString());
-    if (!metaData.public && user?.userid !== fileUserId) return false;
+    if (!metaData.public && user?.userId !== fileUserId) return false;
     const mimeType = metaData.mimeType;
     const fileName = metaData.fileName;
 
@@ -272,13 +268,6 @@ async function handleUserFileRequest(
     res.end();
 
     return true;
-}
-
-function parseFormData(str: string | undefined) {
-    return (str ?? "").split("&").map(item => item.trim().split("=")).reduce((acc, val) => {
-        acc[val[0]] = decodeURIComponent(val.splice(1).join("=")) || undefined;
-        return acc;
-    }, {} as { [key: string]: string | undefined });
 }
 
 const wss = new WebSocket.Server({ server });
@@ -310,10 +299,8 @@ function parseCookies(str: string | undefined) {
     }, {} as { [key: string]: string | undefined });
 }
 
-type User = { username: string, userid: string, password: string, ips: Set<string> };
 type AccessToken = { expires: number, user: User };
 const accessTokens: { [key: string]: AccessToken | undefined } = {};
-const users: { [key: string]: User | undefined } = {};
 
 async function checkAuthorization(token: string | undefined): Promise<[false, undefined | User] | [true, User]> {
     if (token === undefined) return [false, undefined];
@@ -321,7 +308,7 @@ async function checkAuthorization(token: string | undefined): Promise<[false, un
     if (!/[a-zA-Z0-9]{128}/m.test(token)) return [false, undefined];
     const accessToken = accessTokens[token];
     if (accessToken === undefined) return [false, undefined];
-    const user = await getUser(accessToken.user.userid);
+    const user = await User.fromUserId(accessToken.user.userId);
     if (user === undefined) throw new Error("Access token found but not user (what?)");
     if (accessToken.expires < Date.now()) {
         delete accessTokens[token];
@@ -354,75 +341,24 @@ setInterval(() => {
     }
 }, 60000);
 
-async function loadUsers() {
-    const userFiles = await fs.readdir("users");
-    for (let userFile of userFiles) {
-        await loadUser(userFile);
-    }
-    return "Done loading users";
-}
-
-async function loadUser(userId: string) {
-    if (userId.endsWith(".json")) userId = userId.substring(0, userId.length - 5);
-    const user = JSON.parse((await fs.readFile(path.join("users/", userId + ".json"))).toString());
-    users[userId] = {
-        username: user.username,
-        userid: user.userid,
-        password: user.password,
-        ips: new Set(user.ips)
-    } as User;
-}
-
-const userIdChars = "0123456789";
-async function writeUser(username: string, hashedPassword: string, ips: Set<string>) {
-    let userId = "";
-    do {
-        userId = Array.from(Array(32), () => userIdChars[Math.floor(Math.random() * userIdChars.length)]).join("");
-    } while (Object.keys(users).includes(userId));
-    const user = {
-        username: username,
-        userid: userId,
-        password: hashedPassword,
-        ips: [...ips] as unknown as Set<string>
-    } as User;
-    await fs.writeFile(path.join("users/", userId + ".json"), JSON.stringify(user, null, 4));
-    users[userId] = user;
-    return user;
-}
-
-async function updateUser(user: User) {
-    const writeUser = {
-        username: user.username,
-        userid: user.userid,
-        password: user.password,
-        ips: [...user.ips] as unknown as Set<string>
-    } as User;
-    await fs.writeFile(path.join("users/", user.userid + ".json"), JSON.stringify(writeUser, null, 4));
-    users[user.userid] = user;
-    return user;
-}
-
-async function getUser(userId: string) {
-    if (users[userId] === undefined) {
-        await loadUser(userId);
-    }
-    return users[userId];
-}
-
-async function getUserByName(username: string) {
-    for (let userId in users) {
-        let user = users[userId];
-        if (user === undefined) continue;
-        if (user.username.toLowerCase() === username.toLowerCase()) return user;
-    }
-    return undefined;
-}
-
 async function main() {
-    if (!fsSync.existsSync("users/")) await fs.mkdir("users");
     if (!fsSync.existsSync("user_files/")) await fs.mkdir("user_files");
-    await loadUsers();
+    await User.updateUsers();
     server.listen(61559);
+
+    // Change this to `true` if you want
+    // to move legacy user json files to
+    // a databse.
+    const convertOldUsers = false;
+    if (convertOldUsers) {
+        const oldUsersDir = await fs.readdir("users");
+        for (let file of oldUsersDir) {
+            const contents = JSON.parse((await fs.readFile(path.join("users/", file))).toString());
+            const user = User.fromObject(contents);
+            console.log(user);
+            await user.writeChanges();
+        }
+    }
 
     return "Main function complete";
 }

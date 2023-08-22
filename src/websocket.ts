@@ -4,10 +4,10 @@ import URL from "node:url";
 import EventEmitter from "node:events";
 import WebSocket from "ws";
 import mime from "mime";
+import { User } from "./database";
 
 export const websocketEvents = new EventEmitter();
 
-type User = { username: string, userid: string, password: string, ips: Set<string> };
 type Packet = { type?: string, value?: any };
 
 export async function handleWebsocketMessage(
@@ -24,7 +24,7 @@ export async function handleWebsocketMessage(
     const data = JSON.parse(rawData.toString()) as Packet;
     if (data.type === undefined || data.value === undefined) return;
     if (data.type === "search") {
-        const results = (await getUserFiles(user.userid)).filter(result => {
+        const results = (await getUserFiles(user.userId)).filter(result => {
             // do something with data.value to filter the results
             return true;
         });
