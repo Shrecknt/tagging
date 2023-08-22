@@ -1,8 +1,7 @@
-import assert from "node:assert";
 import { Client } from "pg";
 require("dotenv").config();
 
-export let client: Client | undefined;
+let client: Client | undefined;
 export let users: {[key: string]: User | undefined} = {};
 
 export class User {
@@ -29,8 +28,7 @@ export class User {
     }
 
     async writeChanges(): Promise<User> {
-        if (client === undefined) await loadClient();
-        assert(client !== undefined);
+        const client = await useClient();
         const res = client.query(`INSERT INTO users
 	        VALUES ($1::TEXT, $2::TEXT, $3::TEXT, $4::TEXT[], $5::BOOLEAN, $6::INT)
 	        ON CONFLICT (userId, username) DO UPDATE SET (userId, username, password, ips, frozen, permissionLevel)
@@ -80,8 +78,7 @@ export class User {
     }
 
     static async fromUserId(userId: string) {
-        if (client === undefined) await loadClient();
-        assert(client !== undefined);
+        const client = await useClient();
         const res = await client.query("SELECT * FROM users WHERE userId = $1::TEXT;", [ userId ]);
         if (res.rowCount > 1) throw new Error("Found more than one user with given user ID (what?)");
         const user = User.fromObject(res.rows[0]);
@@ -90,8 +87,7 @@ export class User {
     }
 
     static async fromUsername(username: string) {
-        if (client === undefined) await loadClient();
-        assert(client !== undefined);
+        const client = await useClient();
         const res = await client.query("SELECT * FROM users WHERE username = $1::TEXT;", [ username ]);
         if (res.rowCount > 1) throw new Error("Found more than one user with given username (what?)");
         const user = User.fromObject(res.rows[0]);
@@ -100,16 +96,14 @@ export class User {
     }
 
     static async fromUserIp(ip: string) {
-        if (client === undefined) await loadClient();
-        assert(client !== undefined);
+        const client = await useClient();
         const res = await client.query("SELECT * FROM users WHERE $1::TEXT = ANY(ips);", [ ip ]);
         const users = res.rows.map(User.fromObject);
         return users;
     }
 
     static async updateUsers() {
-        if (client === undefined) await loadClient();
-        assert(client !== undefined);
+        const client = await useClient();
         const res = await client.query("SELECT * FROM users;");
         const resUsers = res.rows.map(User.fromObject);
         users = resUsers.reduce((a, b) => {
@@ -120,18 +114,19 @@ export class User {
 };
 
 
-async function loadClient() {
+export async function useClient() {
+    if (client !== undefined) return client;
     client = new Client({
         "database": "tagging",
         "user": "postgres",
         "password": process.env.POSTGRES_PASSWORD
     });
     await client.connect();
+    return client;
 }
 
 async function main() {
-    if (client === undefined) await loadClient();
-    assert(client !== undefined);
+    const client = await useClient();
 
     await client.query("DELETE FROM users;");
 
