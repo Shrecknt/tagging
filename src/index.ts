@@ -8,7 +8,8 @@ import bcrypt from "bcrypt";
 import mime from "mime";
 import formidable from "formidable";
 import { generateUserFileId, handleWebsocketMessage, writeUserFile, websocketEvents } from "./websocket";
-import { User, users } from "./database";
+import * as DB from "./database";
+import * as Auth from "./auth";
 
 const server = http.createServer(async (req, res) => {
     const url = URL.parse(req.url ?? "/");
@@ -16,7 +17,7 @@ const server = http.createServer(async (req, res) => {
     const ip = req.headers["cf-connecting-ip"]?.toString() ?? req.headers["x-forwarded-for"]?.toString() ?? "unknown";
 
     const cookies = parseCookies(req.headers["cookie"]);
-    const [authorized, user] = await checkAuthorization(cookies["Authorization"]);
+    const [authorized, user] = await Auth.checkAuthorization(cookies["Authorization"]);
 
     if (authorized) {
         if (!user.ips.has(ip)) {
@@ -62,15 +63,15 @@ const server = http.createServer(async (req, res) => {
                 res.end();
                 return;
             }
-            if (await User.fromUsername(username[0]) !== undefined) {
+            if (await DB.User.fromUsername(username[0]) !== undefined) {
                 res.writeHead(303, { "Location": "/signup?error=1&username=" + encodeURIComponent(username[0] ?? "") });
                 res.write("User with same name already exists");
                 res.end();
                 return;
             }
-            const hashedPassword = await generatePasswordHash(password[0]);
-            let user = await new User(username[0], hashedPassword).writeChanges();
-            const sessionToken = createSession(user.userId, 3600000);
+            const hashedPassword = await Auth.generatePasswordHash(password[0]);
+            let user = await new DB.User(username[0], hashedPassword).writeChanges();
+            const sessionToken = Auth.createSession(user.userId, 3600000);
             res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
             res.write("Account successfully created");
             res.end();
@@ -85,7 +86,7 @@ const server = http.createServer(async (req, res) => {
                 res.end();
                 return;
             }
-            const user = await User.fromUsername(username[0]);
+            const user = await DB.User.fromUsername(username[0]);
             if (user === undefined) {
                 res.writeHead(303, { "Location": "/login?error=1&username=" + encodeURIComponent(username[0] ?? "") });
                 res.write("No account was found with the given username");
@@ -93,7 +94,7 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
             const passwordHash = user.password;
-            const correctPassword = await checkPasswordHash(password[0], passwordHash);
+            const correctPassword = await Auth.checkPasswordHash(password[0], passwordHash);
             if (!correctPassword) {
                 res.writeHead(303, { "Location": "/login?error=2&username=" + encodeURIComponent(username[0] ?? "") });
                 res.write("Incorrect password");
@@ -101,7 +102,7 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
 
-            const sessionToken = createSession(user.userId, 3600000);
+            const sessionToken = Auth.createSession(user.userId, 3600000);
 
             res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
             res.write("Sign in successful!");
@@ -203,7 +204,7 @@ async function handleAuthorizedRequest(
     res: http.ServerResponse,
     ip: string,
     cookies: { [key: string]: string | undefined },
-    user: User
+    user: DB.User
 ): Promise<boolean> {
     const url = URL.parse(req.url ?? "/");
     if (url.pathname === "/") url.pathname = "/index.html";
@@ -236,7 +237,7 @@ async function handleUserFileRequest(
     url: URL.UrlWithStringQuery,
     ip: string,
     cookies: { [key: string]: string | undefined },
-    user: User | undefined
+    user: DB.User | undefined
 ): Promise<boolean> {
     // url must be /file/*
 
@@ -276,21 +277,13 @@ wss.on("connection", async (socket, req) => {
     const cookies = parseCookies(req.headers["cookie"]);
     const url = URL.parse(req.url ?? "/");
     // console.log("new connection", cookies);
-    const [authorized, user] = await checkAuthorization(cookies["Authorization"]);
+    const [authorized, user] = await Auth.checkAuthorization(cookies["Authorization"]);
 
     socket.on("message", (data, isBinary) => {
         // console.log("new message", isBinary ? data : data.toString());
         handleWebsocketMessage(socket, url, cookies, authorized, user, data, isBinary);
     });
 });
-
-const saltRounds = 10;
-async function generatePasswordHash(password: string) {
-    return await bcrypt.hash(password, saltRounds);
-}
-async function checkPasswordHash(password: string, passwordHash: string) {
-    return await bcrypt.compare(password, passwordHash);
-}
 
 function parseCookies(str: string | undefined) {
     return (str ?? "").split(";").map(item => item.trim().split("=")).reduce((acc, val) => {
@@ -299,51 +292,9 @@ function parseCookies(str: string | undefined) {
     }, {} as { [key: string]: string | undefined });
 }
 
-type AccessToken = { expires: number, user: User };
-const accessTokens: { [key: string]: AccessToken | undefined } = {};
-
-async function checkAuthorization(token: string | undefined): Promise<[false, undefined | User] | [true, User]> {
-    if (token === undefined) return [false, undefined];
-    if (token.includes("\n")) return [false, undefined];
-    if (!/[a-zA-Z0-9]{128}/m.test(token)) return [false, undefined];
-    const accessToken = accessTokens[token];
-    if (accessToken === undefined) return [false, undefined];
-    const user = await User.fromUserId(accessToken.user.userId);
-    if (user === undefined) throw new Error("Access token found but not user (what?)");
-    if (accessToken.expires < Date.now()) {
-        delete accessTokens[token];
-        return [false, user];
-    }
-    return [true, user];
-}
-
-const accessTokenChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-function createSession(userId: string, expiresIn: number) {
-    const user = users[userId];
-    if (user === undefined) throw new Error("Unknown user");
-    let sessionToken = "";
-    do {
-        sessionToken = Array.from(Array(128), () => accessTokenChars[Math.floor(Math.random() * accessTokenChars.length)]).join("");
-    } while (Object.keys(accessTokens).includes(sessionToken));
-    const newSession = {
-        expires: Date.now() + expiresIn,
-        user: user
-    } as AccessToken;
-    accessTokens[sessionToken] = newSession;
-    return sessionToken;
-}
-
-setInterval(() => {
-    for (let session in accessTokens) {
-        if ((accessTokens[session]?.expires ?? 0) < Date.now()) {
-            delete accessTokens[session];
-        }
-    }
-}, 60000);
-
 async function main() {
     if (!fsSync.existsSync("user_files/")) await fs.mkdir("user_files");
-    await User.updateUsers();
+    await DB.User.updateUsers();
     server.listen(61559);
 
     // Change this to `true` if you want
@@ -354,7 +305,7 @@ async function main() {
         const oldUsersDir = await fs.readdir("users");
         for (let file of oldUsersDir) {
             const contents = JSON.parse((await fs.readFile(path.join("users/", file))).toString());
-            const user = User.fromObject(contents);
+            const user = DB.User.fromObject(contents);
             console.log(user);
             await user.writeChanges();
         }
