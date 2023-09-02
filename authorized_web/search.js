@@ -1,7 +1,8 @@
 const ws = new WebSocket(`wss://${window.location.hostname}`);
 ws.addEventListener("open", (event) => {
     console.log("open event", event);
-    ws.send(JSON.stringify({ "type": "search", "value": "meme" }));
+    currentQuery = "meme";
+    ws.send(JSON.stringify({ "type": "search", "value": currentQuery }));
 });
 ws.addEventListener("close", (event) => {
     console.log("close event", event);
@@ -14,6 +15,7 @@ ws.addEventListener("message", async (msgBlob) => {
     const data = JSON.parse(msg);
     console.log("data", data);
 
+    console.log(data.type, data.query, currentQuery);
     switch (data.type) {
         case "searchResults":
             if (data.query === currentQuery) {
@@ -28,5 +30,6 @@ ws.addEventListener("message", async (msgBlob) => {
 let currentQuery = "";
 
 function loadSearchResults(value) {
-
+    console.log("Displaying output");
+    document.getElementById("display").innerText = JSON.stringify(value, null, 4);
 }

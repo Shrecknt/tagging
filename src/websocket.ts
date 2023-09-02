@@ -27,7 +27,11 @@ export async function handleWebsocketMessage(
             // do something with data.value to filter the results
             return true;
         });
-        const returnValue = { "type": "searchResults", "value": results, "query": data.value } as Packet;
+        const returnValue = { "type": "searchResults", "value": results.map(file => {
+            const res = file.toObject();
+            res.filesize = Number(res.filesize) as unknown as BigInt;
+            return res;
+        }), "query": data.value } as Packet;
         socket.send(JSON.stringify(returnValue));
     }
 
@@ -94,6 +98,7 @@ export async function writeUserFile(fileId: string, userid: string, filePath: st
     const userFilesRawDir = path.join(userFilesDir, "raw");
 
     try {
+        await fs.readdir(userFilesDir);
         await fs.readdir(userFilesRawDir);
     } catch (e) {
         await fs.mkdir(userFilesDir);
