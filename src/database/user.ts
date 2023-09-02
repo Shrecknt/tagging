@@ -25,9 +25,9 @@ export class User {
 
     async writeChanges(): Promise<User> {
         const client = await useClient();
-        const res = client.query(`INSERT INTO users
+        const res = await client.query(`INSERT INTO users
 	        VALUES ($1::TEXT, $2::TEXT, $3::TEXT, $4::TEXT[], $5::BOOLEAN, $6::INT)
-	        ON CONFLICT (userId, username) DO UPDATE SET (userId, username, password, ips, frozen, permissionLevel)
+	        ON CONFLICT (userId) DO UPDATE SET (userId, username, password, ips, frozen, permissionLevel)
 		        = (excluded.userId, excluded.username, excluded.password, excluded.ips, excluded.frozen, excluded.permissionLevel);`,
                 [this.userId, this.username, this.password, [...this.ips], this.frozen, this.permissionLevel]);
         return this;
@@ -77,6 +77,7 @@ export class User {
         const client = await useClient();
         const res = await client.query("SELECT * FROM users WHERE userId = $1::TEXT;", [ userId ]);
         if (res.rowCount > 1) throw new Error("Found more than one user with given user ID (what?)");
+        if (res.rowCount < 1) return undefined;
         const user = User.fromObject(res.rows[0]);
         users[user.userId] = user;
         return user;
@@ -84,8 +85,9 @@ export class User {
 
     static async fromUsername(username: string) {
         const client = await useClient();
-        const res = await client.query("SELECT * FROM users WHERE username = $1::TEXT;", [ username ]);
+        const res = await client.query("SELECT * FROM users WHERE username ILIKE $1::TEXT;", [ username ]);
         if (res.rowCount > 1) throw new Error("Found more than one user with given username (what?)");
+        if (res.rowCount < 1) return undefined;
         const user = User.fromObject(res.rows[0]);
         users[user.userId] = user;
         return user;
@@ -106,5 +108,12 @@ export class User {
             a[b.userId] = b;
             return a;
         }, {} as {[key: string]: User | undefined}));
+    }
+
+    static async getUsers() {
+        const client = await useClient();
+        const res = await client.query("SELECT * FROM users;");
+        const resUsers = res.rows.map(User.fromObject);
+        return resUsers;
     }
 };

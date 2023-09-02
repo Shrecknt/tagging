@@ -6,9 +6,10 @@ import URL from "node:url";
 import WebSocket from "ws";
 import mime from "mime";
 import formidable from "formidable";
-import { generateUserFileId, handleWebsocketMessage, writeUserFile, websocketEvents } from "./websocket";
+import { handleWebsocketMessage, writeUserFile, websocketEvents } from "./websocket";
 import * as DB from "./database";
 import * as Auth from "./auth";
+import { allowedMimeTypes } from "./database/file";
 
 const server = http.createServer(async (req, res) => {
     const url = URL.parse(req.url ?? "/");
@@ -49,28 +50,29 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (url.pathname === "/signup" && !authorized) {
-            const { username, password } = fields;
-            if (username[0] === undefined
-                || password[0] === undefined
-                || username[0].includes("\n")
-                || password[0].includes("\n")
-                || !/^[!-~]{3,16}$/m.test(username[0])
-                || !/^[!-~]{5,32}$/m.test(password[0])
+            const { username: _username, password: _password } = fields;
+            const username = _username[0], password = _password[0];
+            if (username === undefined
+                || password === undefined
+                || username.includes("\n")
+                || password.includes("\n")
+                || !/^[!-~]{3,16}$/m.test(username)
+                || !/^[!-~]{5,32}$/m.test(password)
             ) {
-                res.writeHead(303, { "Location": "/signup?error=0&username=" + encodeURIComponent(username[0] ?? "") });
+                res.writeHead(303, { "Location": "/signup?error=0&username=" + encodeURIComponent(username ?? "") });
                 res.write("Invalid username or password");
                 res.end();
                 return;
             }
-            if (await DB.User.fromUsername(username[0]) !== undefined) {
-                res.writeHead(303, { "Location": "/signup?error=1&username=" + encodeURIComponent(username[0] ?? "") });
+            if (await DB.User.fromUsername(username) !== undefined) {
+                res.writeHead(303, { "Location": "/signup?error=1&username=" + encodeURIComponent(username ?? "") });
                 res.write("User with same name already exists");
                 res.end();
                 return;
             }
-            const hashedPassword = await Auth.generatePasswordHash(password[0]);
-            let user = await new DB.User(username[0], hashedPassword).writeChanges();
-            const sessionToken = Auth.createSession(user.userId, 3600000);
+            const hashedPassword = await Auth.generatePasswordHash(password);
+            let user = await new DB.User(username, hashedPassword).writeChanges();
+            const sessionToken = Auth.createSession(user, 3600000);
             res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
             res.write("Account successfully created");
             res.end();
@@ -78,30 +80,31 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (url.pathname === "/login" && !authorized) {
-            const { username, password } = fields;
-            if (username[0] === undefined || password[0] === undefined) {
-                res.writeHead(303, { "Location": "/login?error=0&username=" + encodeURIComponent(username[0] ?? "") });
+            const { username: _username, password: _password } = fields;
+            const username = _username[0], password = _password[0];
+            if (username === undefined || password === undefined) {
+                res.writeHead(303, { "Location": "/login?error=0&username=" + encodeURIComponent(username ?? "") });
                 res.write("Invalid username or password");
                 res.end();
                 return;
             }
-            const user = await DB.User.fromUsername(username[0]);
+            const user = await DB.User.fromUsername(username);
             if (user === undefined) {
-                res.writeHead(303, { "Location": "/login?error=1&username=" + encodeURIComponent(username[0] ?? "") });
+                res.writeHead(303, { "Location": "/login?error=1&username=" + encodeURIComponent(username ?? "") });
                 res.write("No account was found with the given username");
                 res.end();
                 return;
             }
             const passwordHash = user.password;
-            const correctPassword = await Auth.checkPasswordHash(password[0], passwordHash);
+            const correctPassword = await Auth.checkPasswordHash(password, passwordHash);
             if (!correctPassword) {
-                res.writeHead(303, { "Location": "/login?error=2&username=" + encodeURIComponent(username[0] ?? "") });
+                res.writeHead(303, { "Location": "/login?error=2&username=" + encodeURIComponent(username ?? "") });
                 res.write("Incorrect password");
                 res.end();
                 return;
             }
 
-            const sessionToken = Auth.createSession(user.userId, 3600000);
+            const sessionToken = Auth.createSession(user, 3600000);
 
             res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
             res.write("Sign in successful!");
@@ -124,13 +127,32 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
 
-            const fileId = await generateUserFileId(user.userId);
+            const fileId = await DB.UserFile.generateFileId();
             res.writeHead(303, { "Location": /*`/file/${user.userid}/${fileId}`*/ `/postupload?userid=${encodeURIComponent(user.userId)}&fileid=${encodeURIComponent(fileId)}` });
             res.write("Uploading...");
             res.end();
-            // console.log(file.filepath);
-            await writeUserFile(fileId, user.userId, file.originalFilename ?? "unknown", [], file.filepath, fields["public"][0] === "on");
-            // console.log("Uploaded to " + url);
+            /* Write file to disk, this will be changed later */
+            await writeUserFile(
+                fileId,
+                user.userId,
+                file.filepath,
+                fields["public"][0] === "on"
+            );
+            /* Save file meta to database */
+            const userFile = new DB.UserFile(
+                fileId,
+                user.userId,
+                file.originalFilename
+                    ?? "unknown",
+                file.mimetype
+                    || mime.getType(
+                        file.originalFilename
+                            ?? ""
+                ),
+                [],
+                fields["public"][0] === "on",
+                file.size);
+            await userFile.writeChanges();
             return;
         }
 
@@ -249,21 +271,61 @@ async function handleUserFileRequest(
     // console.log(fileUserId, fileId);
 
     const userFilesPath = path.resolve("user_files/");
-    const requestDataPath = path.join(userFilesPath, fileUserId + "/", "data/", fileId);
+    // const requestDataPath = path.join(userFilesPath, fileUserId + "/", "data/", fileId);
     const requestRawPath = path.join(userFilesPath, fileUserId + "/", "raw/", fileId);
-    if (!requestDataPath.startsWith(path.join(userFilesPath, fileUserId))) return false;
-    try {
-        if (!(await fs.stat(requestDataPath)).isFile()) {
-            throw 0;
-        }
-    } catch (e) { return false; }
 
-    const metaData = JSON.parse((await fs.readFile(requestDataPath)).toString());
-    if (!metaData.public && user?.userId !== fileUserId) return false;
-    const mimeType = metaData.mimeType;
-    const fileName = metaData.fileName;
+    const userFile = await DB.UserFile.fromFileId(fileId);
+    if (userFile === undefined) return false;
+    if (userFile.userId !== fileUserId) return false;
 
-    res.writeHead(200, { "Content-Type": mimeType, "Content-Disposition": `filename="${encodeURIComponent(fileName)}"` });
+    if (!userFile._public && user?.userId !== fileUserId) return false;
+
+    let mimeType = userFile.mimeType ?? "text/plain";
+    if (!allowedMimeTypes.includes(mimeType)) {
+        mimeType = "text/plain";
+    }
+    const fileName = userFile.fileName;
+
+    // const stat = fsSync.statSync(requestRawPath);
+
+    // const range = req.headers.range;
+    // if (range) {
+    //     const parts = range.replace(/bytes=/, "").split("-");
+    //     const start = parseInt(parts[0], 10);
+    //     const end = Math.min(start + (64 * 1024) - 1, stat.size - 1); // parts[1] ? parseInt(parts[1], 10) : Math.min(stat.size - 1, start + (1024 * 1024))/* (stat.size - 1) */;
+    //     const chunkSize = (end - start) + 1;
+
+    //     // console.log("range", range, "start", start, "end", end, "chunkSize", chunkSize);
+
+    //     res.writeHead(206, {
+    //         "Content-Type": mimeType,
+    //         "Content-Range": `bytes ${start}-${end}/${stat.size}`,
+    //         "Accept-Ranges": "bytes",
+    //         "Content-Length": chunkSize,
+    //         "Content-Disposition": `filename="${encodeURIComponent(fileName)}"`
+    //     });
+    //     const fileStream = fsSync.createReadStream(requestRawPath, { start, end });
+    //     fileStream.once("open", () => {
+    //         fileStream.pipe(res);
+    //     });
+    //     // fileStream.once("close", () => console.log("Closed 2"));
+    //     // fileStream.on("end", () => res.end());
+
+    //     // res.write(await fs.readFile(requestRawPath));
+    //     // res.end();
+    // } else {
+    //     res.writeHead(200, {
+    //         "Content-Type": mimeType,
+    //         "Content-Length": stat.size,
+    //         "Content-Disposition": `filename="${encodeURIComponent(fileName)}"`
+    //     });
+    //     fsSync.createReadStream(requestRawPath).pipe(res).once("close", () => console.log("Closed"));
+    // }
+
+    res.writeHead(200, {
+        "Content-Type": mimeType ?? "text/plain",
+        "Content-Disposition": `filename="${encodeURIComponent(fileName)}"`
+    });
     res.write(await fs.readFile(requestRawPath));
     res.end();
 

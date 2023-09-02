@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import { User, users } from "./database";
+import { User } from "./database";
 
 const saltRounds = 10;
 export async function generatePasswordHash(password: string) {
@@ -28,8 +28,7 @@ export async function checkAuthorization(token: string | undefined): Promise<[fa
 }
 
 const accessTokenChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-export function createSession(userId: string, expiresIn: number) {
-    const user = users[userId];
+export function createSession(user: User, expiresIn: number) {
     if (user === undefined) throw new Error("Unknown user");
     let sessionToken = "";
     do {

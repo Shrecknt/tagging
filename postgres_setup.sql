@@ -8,20 +8,22 @@ CREATE TABLE users (
 	ips TEXT ARRAY NOT NULL,
 	frozen BOOLEAN NOT NULL,
 	permissionLevel INT NOT NULL,
-	UNIQUE (userId, username)
+	UNIQUE (userId)
 );
 
 CREATE TABLE files (
 	fileId TEXT NOT NULL,
 	userId TEXT NOT NULL,
-	username TEXT NOT NULL,
 	PRIMARY KEY (fileId),
 	CONSTRAINT fk_user
-		FOREIGN KEY(userId, username) 
-		REFERENCES users(userId, username),
-	mimeType TEXT NOT NULL,
+		FOREIGN KEY(userId) 
+		REFERENCES users(userId),
+	fileName TEXT NOT NULL,
+	mimeType TEXT,
+	tags TEXT[] NOT NULL,
+	_public BOOLEAN NOT NULL,
 	fileSize BIGINT NOT NULL,
-	UNIQUE (userId, username)
+	UNIQUE (fileId)
 );
 
 

@@ -6,3 +6,4 @@ user_files/*
 raw/
 data/
 .env
+users.json
