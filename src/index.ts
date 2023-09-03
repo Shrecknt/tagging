@@ -122,7 +122,7 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
             const uploadedFile = files["uploadFile"];
-            if (uploadedFile.length !== 1) {
+            if (uploadedFile === undefined || uploadedFile.length !== 1) {
                 res.writeHead(303, { "Location": "/upload" });
                 res.write("Must provide 1 file");
                 res.end();
