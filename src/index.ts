@@ -115,6 +115,12 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (url.pathname === "/upload" && authorized) {
+            if (user.permissionLevel < 1 && await user.getFileCount() >= 255) {
+                res.writeHead(303, { "Location": "/upload" });
+                res.write("Exceeded file limit");
+                res.end();
+                return;
+            }
             const uploadedFile = files["uploadFile"];
             if (uploadedFile.length !== 1) {
                 res.writeHead(303, { "Location": "/upload" });
@@ -137,8 +143,7 @@ const server = http.createServer(async (req, res) => {
             await DB.writeUserFile(
                 fileId,
                 user.userId,
-                file.filepath,
-                fields["public"][0] === "on"
+                file.filepath
             );
             /* Save file meta to database */
             const userFile = new DB.UserFile(
@@ -152,10 +157,10 @@ const server = http.createServer(async (req, res) => {
                             ?? ""
                 ),
                 [],
-                fields["public"][0] === "on",
                 file.size,
                 file.originalFilename ?? "no title",
-                ""
+                "",
+                (fields["public"][0] === "on" ? 1 : 0)
             );
             await userFile.writeChanges();
             return;
@@ -283,7 +288,7 @@ async function handleUserFileRequest(
     if (userFile === undefined) return false;
     if (userFile.userId !== fileUserId) return false;
 
-    if (!userFile._public && user?.userId !== fileUserId) return false;
+    if (userFile.visibility < 1 && user?.userId !== fileUserId) return false;
 
     let mimeType = userFile.mimeType ?? "text/plain";
     if (!allowedMimeTypes.includes(mimeType)) {

@@ -34,8 +34,19 @@ export class User {
         return this;
     }
 
-    async getFiles(): Promise<UserFile[]> {
-        return UserFile.fromUserId(this.userId);
+    async getFiles(_tags: string[] | Set<string> = [], page: number = 0, pageSize = 8): Promise<UserFile[]> {
+        return UserFile.fromUserId(this.userId, _tags, page, pageSize);
+    }
+
+    async getFileCount(): Promise<number> {
+        const client = await useClient();
+        const res = await client.query(`
+            SELECT COUNT(*) FROM files
+                WHERE userid = $1::TEXT;
+        `, [ this.userId ]);
+        if (res.rowCount !== 1) throw new Error("Error getting count");
+        const row = res.rows[0];
+        return row.count;
     }
 
     toObject() {

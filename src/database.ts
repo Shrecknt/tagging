@@ -46,11 +46,15 @@ async function main() {
     const shreckntUser = await User.fromUsername("Shrecknt");
     assert(shreckntUser !== undefined);
 
-    const newFile = new UserFile("12345", shreckntUser.userId, "test.txt", "text/plain", [ "test-tag" ], false, 0, "test.txt", "");
-    newFile.writeChanges();
+    // console.log((await shreckntUser.getFiles()).length);
+    console.log(shreckntUser.userId);
+    console.log(await shreckntUser.getFileCount());
 
-    const searchTag = await UserFile.fromUserId(shreckntUser.userId, [ "test-tag" ]);
-    console.log("searchTag", searchTag);
+    // const newFile = new UserFile("12345", shreckntUser.userId, "test.txt", "text/plain", [ "test-tag" ], 0, "test.txt", "", 0);
+    // newFile.writeChanges();
+
+    // const searchTag = await UserFile.fromUserId(shreckntUser.userId, [ "test-tag" ]);
+    // console.log("searchTag", searchTag);
 
     // console.log(await User.fromUserIp("test-ip") /* User[] */);
     // console.log(await User.fromUserId("test-userid") /* User | undefined */);

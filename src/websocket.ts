@@ -24,9 +24,9 @@ export async function handleWebsocketMessage(
     if (data.type === undefined || data.value === undefined) return;
     if (data.type === "search") {
         const tags = String(data.value).split(",").map(tag => tag.trim());
-        const results = (await UserFile.fromTags(tags)).filter(result => {
+        const results = (await UserFile.fromTags(tags, Number((data as any).page) ?? 0)).filter(result => {
             // do something with data.value to filter the results
-            if (result.userId !== user.userId && !result._public) return false;
+            if (result.userId !== user.userId && result.visibility < 2) return false;
             return true;
         });
         const returnValue = { "type": "searchResults", "value": results.map(file => {

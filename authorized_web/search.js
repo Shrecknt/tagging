@@ -2,7 +2,7 @@ const ws = new WebSocket(`wss://${window.location.host}/api`);
 ws.addEventListener("open", (event) => {
     console.log("open event", event);
     currentQuery = "";
-    ws.send(JSON.stringify({ "type": "search", "value": currentQuery }));
+    requestNextPage();
 });
 ws.addEventListener("close", (event) => {
     console.log("close event", event);
@@ -15,11 +15,14 @@ ws.addEventListener("message", async (msgBlob) => {
     const data = JSON.parse(msg);
     console.log("data", data);
 
-    console.log(data.type, data.query, currentQuery);
+    // console.log(data.type, data.query, currentQuery);
     switch (data.type) {
         case "searchResults":
             if (data.query === currentQuery) {
+                if (data.value.length < 1) allResultsLoaded = true;
                 loadSearchResults(data.value);
+                if (checkScroll() && !allResultsLoaded)
+                    ws.send(JSON.stringify({ "type": "search", "value": currentQuery, "page": page++ }));
             }
             break;
         default:
@@ -27,9 +30,58 @@ ws.addEventListener("message", async (msgBlob) => {
     }
 });
 
+let allResultsLoaded = false;
+let page = 0;
 let currentQuery = "";
 
 function loadSearchResults(value) {
     console.log("Displaying output");
-    document.getElementById("display").innerText = JSON.stringify(value, null, 4);
+    // document.getElementById("display").innerText = JSON.stringify(value, null, 4);
+    value.forEach(displayResult);
 }
+
+function displayResult(value) {
+    const url = `/file/${value.userid}/${value.fileid}`;
+    const container = document.createElement("A");
+    container.setAttribute("href", url);
+    container.classList.add("container");
+    const thumbnail = document.createElement("DIV");
+    thumbnail.classList.add("thumbnail");
+    if ((value.mimetype ?? "").startsWith("image/")) {
+        thumbnail.style.backgroundImage = `url(${url})`;
+    } else {
+        thumbnail.style.backgroundImage = "url(/unknown.png)";
+    }
+    container.appendChild(thumbnail);
+    const caption = document.createElement("DIV");
+    caption.classList.add("caption");
+    caption.innerText = value.title ?? value.filename;
+    container.appendChild(caption);
+    document.getElementById("display").appendChild(container);
+}
+
+function checkScroll() {
+    const rect = document.getElementById("scrollDetector").getBoundingClientRect();
+    const viewHeight = Math.max(document.documentElement.clientHeight, window.innerHeight);
+    return !(rect.bottom < 0 || rect.top - viewHeight >= 0);
+}
+
+window.addEventListener("scroll", () => {
+    const inView = checkScroll();
+    if (inView && !allResultsLoaded) requestNextPage();
+});
+
+function requestNextPage() {
+    ws.send(JSON.stringify({ "type": "search", "value": currentQuery, "page": page++ }));
+}
+
+const searchBar = document.getElementById("search");
+searchBar.addEventListener("keypress", ({ key }) => {
+    if (key === "Enter") {
+        document.getElementById("display").innerHTML = "";
+        allResultsLoaded = false;
+        currentQuery = searchBar.value;
+        page = 0;
+        requestNextPage();
+    }
+});

@@ -24,10 +24,10 @@ async function main() {
                 userFile.fileName,
                 userFile.mimeType ?? null,
                 userFile.tags,
-                userFile.public,
                 fsSync.statSync(userFilePath).size,
                 userFile.fileName,
-                ""
+                "",
+                (userFile.public ? 1 : 0)
             );
             await generatedUserFile.writeChanges();
         }

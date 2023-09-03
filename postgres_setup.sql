@@ -21,10 +21,10 @@ CREATE TABLE files (
 	fileName TEXT NOT NULL,
 	mimeType TEXT,
 	tags TEXT[] NOT NULL,
-	_public BOOLEAN NOT NULL,
 	fileSize BIGINT NOT NULL,
 	title TEXT NOT NULL,
 	description TEXT NOT NULL,
+	visibility INT NOT NULL,
 	UNIQUE (fileId)
 );
 
