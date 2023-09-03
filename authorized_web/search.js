@@ -19,10 +19,9 @@ ws.addEventListener("message", async (msgBlob) => {
     switch (data.type) {
         case "searchResults":
             if (data.query === currentQuery) {
-                if (data.value.length < 1) allResultsLoaded = true;
+                // if (data.value.length < 1) allResultsLoaded = true;
                 loadSearchResults(data.value);
-                if (checkScroll() && !allResultsLoaded)
-                    ws.send(JSON.stringify({ "type": "search", "value": currentQuery, "page": page++ }));
+                if (checkScroll() && !allResultsLoaded) requestNextPage();
             }
             break;
         default:
@@ -43,12 +42,13 @@ function loadSearchResults(value) {
 function displayResult(value) {
     const url = `/file/${value.userid}/${value.fileid}`;
     const container = document.createElement("A");
-    container.setAttribute("href", url);
+    const suffix = (value.mimetype === "image/gif") ? ".gif" : ""; // discor y u make me do this
+    container.setAttribute("href", url + suffix);
     container.classList.add("container");
     const thumbnail = document.createElement("DIV");
     thumbnail.classList.add("thumbnail");
     if ((value.mimetype ?? "").startsWith("image/")) {
-        thumbnail.style.backgroundImage = `url(${url})`;
+        thumbnail.style.backgroundImage = `url(${url}${suffix})`;
     } else {
         thumbnail.style.backgroundImage = "url(/unknown.png)";
     }
@@ -72,6 +72,7 @@ window.addEventListener("scroll", () => {
 });
 
 function requestNextPage() {
+    console.log("requesting", page);
     ws.send(JSON.stringify({ "type": "search", "value": currentQuery, "page": page++ }));
 }
 

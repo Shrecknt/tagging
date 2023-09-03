@@ -135,8 +135,9 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
 
+            const suffix = (mime.getType(file.originalFilename ?? "") === "image/gif") ? ".gif" : "";
             const fileId = await DB.UserFile.generateFileId();
-            res.writeHead(303, { "Location": /*`/file/${user.userid}/${fileId}`*/ `/postupload?userid=${encodeURIComponent(user.userId)}&fileid=${encodeURIComponent(fileId)}` });
+            res.writeHead(303, { "Location": /*`/file/${user.userid}/${fileId}`*/ `/postupload?userid=${encodeURIComponent(user.userId)}&fileid=${encodeURIComponent(fileId)}${suffix}` });
             res.write("Uploading...");
             res.end();
             /* Write file to disk, this will be changed later */
@@ -276,7 +277,8 @@ async function handleUserFileRequest(
     if (pathNameArr.splice(0, 2)[1] !== "file") return false;
     if (pathNameArr.length !== 2) return false;
     const fileUserId = pathNameArr[0];
-    const fileId = pathNameArr[1];
+    let fileId = pathNameArr[1];
+    if (fileId.endsWith(".gif")) fileId = fileId.substring(0, fileId.length - 4);
 
     // console.log(fileUserId, fileId);
 
