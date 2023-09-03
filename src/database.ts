@@ -49,6 +49,7 @@ async function main() {
     // console.log((await shreckntUser.getFiles()).length);
     console.log(shreckntUser.userId);
     console.log(await shreckntUser.getFileCount());
+    console.log(await shreckntUser.cumulativeFileSize());
 
     // const newFile = new UserFile("12345", shreckntUser.userId, "test.txt", "text/plain", [ "test-tag" ], 0, "test.txt", "", 0);
     // newFile.writeChanges();

@@ -49,6 +49,15 @@ export class User {
         return row.count;
     }
 
+    async cumulativeFileSize(): Promise<number> {
+        const client = await useClient();
+        const res = await client.query(`
+            SELECT filesize FROM files
+                WHERE userid = $1::TEXT;
+        `, [ this.userId ]);
+        return res.rows.reduce((prev, cur) => prev + Number(cur.filesize), 0);
+    }
+
     toObject() {
         return {
             userid: this.userId,
