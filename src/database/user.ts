@@ -1,4 +1,4 @@
-import { useClient, users, setUsers } from "../database";
+import { useClient, users, setUsers, UserFile } from "../database";
 
 export class User {
     userId: string;
@@ -25,12 +25,17 @@ export class User {
 
     async writeChanges(): Promise<User> {
         const client = await useClient();
-        const res = await client.query(`INSERT INTO users
-	        VALUES ($1::TEXT, $2::TEXT, $3::TEXT, $4::TEXT[], $5::BOOLEAN, $6::INT)
-	        ON CONFLICT (userId) DO UPDATE SET (userId, username, password, ips, frozen, permissionLevel)
-		        = (excluded.userId, excluded.username, excluded.password, excluded.ips, excluded.frozen, excluded.permissionLevel);`,
-                [this.userId, this.username, this.password, [...this.ips], this.frozen, this.permissionLevel]);
+        const res = await client.query(`
+            INSERT INTO users
+                VALUES ($1::TEXT, $2::TEXT, $3::TEXT, $4::TEXT[], $5::BOOLEAN, $6::INT)
+                ON CONFLICT (userId) DO UPDATE SET (userId, username, password, ips, frozen, permissionLevel)
+                    = (excluded.userId, excluded.username, excluded.password, excluded.ips, excluded.frozen, excluded.permissionLevel);
+        `, [this.userId, this.username, this.password, [...this.ips], this.frozen, this.permissionLevel]);
         return this;
+    }
+
+    async getFiles(): Promise<UserFile[]> {
+        return UserFile.fromUserId(this.userId);
     }
 
     toObject() {

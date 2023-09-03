@@ -1,7 +1,9 @@
-import fs from "node:fs";
-import { useClient } from "../database";
+import fs from "node:fs/promises";
+import fsSync from "node:fs";
+import path from "node:path";
+import { User, useClient } from "../database";
 
-export const allowedMimeTypes = fs.readFileSync("allowed_mime_types.txt")
+export const allowedMimeTypes = fsSync.readFileSync("allowed_mime_types.txt")
     .toString()
     .replace(/\r/g, "")
     .split("\n")
@@ -16,33 +18,40 @@ export class UserFile {
     tags: Set<string>;
     _public: boolean;
     fileSize: BigInt;
+    title: string;
+    description: string;
 
-    constructor(fileId: string, userId: string, fileName: string, mimeType: string | null, tags: Set<string> | string[], _public: boolean, fileSize: BigInt | number) {
+    constructor(fileId: string, userId: string, fileName: string, mimeType: string | null, tags: Set<string> | string[], _public: boolean, fileSize: BigInt | number, title: string, description: string) {
         this.fileId = fileId;
         this.userId = userId;
         this.fileName = fileName;
         this.mimeType = mimeType;
-        if (tags instanceof Set) {
-            this.tags = tags;
-        } else {
-            this.tags = new Set(tags);
-        }
+        this.tags = new Set((tags instanceof Set ? [...tags] : tags).map(tag => tag.toLowerCase()));
         this._public = _public;
         if (fileSize instanceof BigInt) {
             this.fileSize = fileSize;
         } else {
             this.fileSize = BigInt(fileSize);
         }
+        this.title = title;
+        this.description = description;
     }
 
     async writeChanges(): Promise<UserFile> {
         const client = await useClient();
-        const res = await client.query(`INSERT INTO files
-	        VALUES ($1::TEXT, $2::TEXT, $3::TEXT, $4::TEXT, $5::TEXT[], $6::BOOL, $7::BIGINT)
-	        ON CONFLICT (fileId) DO UPDATE SET (fileId, userId, fileName, mimeType, tags, _public, fileSize)
-		        = (excluded.fileId, excluded.userId, excluded.fileName, excluded.mimeType, excluded.tags, excluded._public, excluded.fileSize);`,
-                [this.fileId, this.userId, this.fileName, this.mimeType, [...this.tags], this._public, this.fileSize]);
+        const res = await client.query(`
+            INSERT INTO files
+                VALUES ($1::TEXT, $2::TEXT, $3::TEXT, $4::TEXT, $5::TEXT[], $6::BOOL, $7::BIGINT, $8::TEXT, $9::TEXT)
+                ON CONFLICT (fileId) DO UPDATE SET (fileId, userId, fileName, mimeType, tags, _public, fileSize, title, description)
+                    = (excluded.fileId, excluded.userId, excluded.fileName, excluded.mimeType, excluded.tags, excluded._public, excluded.fileSize, excluded.title, excluded.description);
+        `, [this.fileId, this.userId, this.fileName, this.mimeType, [...this.tags], this._public, this.fileSize, this.title, this.description]);
         return this;
+    }
+
+    async getUser(): Promise<User> {
+        const user = await User.fromUserId(this.userId);
+        if (user === undefined) throw new Error("File is not associated with an existing user");
+        return user;
     }
 
     toObject() {
@@ -51,7 +60,11 @@ export class UserFile {
             userid: this.userId,
             filename: this.fileName,
             mimetype: this.mimeType,
-            filesize: this.fileSize
+            tags: [...this.tags],
+            public: this._public,
+            filesize: this.fileSize,
+            title: this.title,
+            description: this.description
         };
     }
 
@@ -68,7 +81,9 @@ export class UserFile {
         public?: boolean,
         _public?: boolean,
         fileSize?: BigInt | number,
-        filesize?: BigInt | number
+        filesize?: BigInt | number,
+        title: string,
+        description: string
     }) {
         if (obj.fileId ?? obj.fileid === undefined) throw new Error("Must provide either `fileId` or `fileid`");
         if (obj.userId ?? obj.userid === undefined) throw new Error("Must provide either `userId` or `userid`");
@@ -82,7 +97,9 @@ export class UserFile {
             obj.mimeType ?? obj.mimetype ?? null,
             obj.tags,
             obj.public ?? obj._public,
-            obj.fileSize ?? obj.filesize
+            obj.fileSize ?? obj.filesize,
+            obj.title,
+            obj.description
         );
     }
 
@@ -96,18 +113,34 @@ export class UserFile {
     }
 
     static async fromUserId(userId: string, _tags: string[] | Set<string> = []) {
-        const tags = _tags instanceof Set ? _tags : new Set(_tags);
+        const tags = (_tags instanceof Set ? [..._tags] : _tags).map(tag => tag.toLowerCase());
         const client = await useClient();
         let query = "SELECT * FROM files WHERE userId = $1::TEXT";
         const params: any[] = [ userId ];
-        if (tags.size > 0) {
+        if (tags.length > 0) {
             query += ` AND ARRAY(
 		        SELECT UNNEST($2::TEXT[])
 		        EXCEPT SELECT UNNEST(tags)
 	        ) = '{}'::TEXT[]`;
-            params.push([...tags]);
+            params.push(tags);
         }
         const res = await client.query(query, params);
+        const files = res.rows.map(UserFile.fromObject);
+        return files;
+    }
+
+    static async fromTags(_tags: string[] | Set<string> = []) {
+        const tags: string[] = (_tags instanceof Set ? [..._tags] : _tags)
+            .map(tag => tag.toLowerCase())
+            .filter(tag => tag !== "");
+        const client = await useClient();
+        const res = await client.query(`
+            SELECT * FROM files
+            WHERE ARRAY(
+		        SELECT UNNEST($1::TEXT[])
+		        EXCEPT SELECT UNNEST(tags)
+	        ) = '{}'::TEXT[];
+        `, [ tags ]);
         const files = res.rows.map(UserFile.fromObject);
         return files;
     }
@@ -121,3 +154,20 @@ export class UserFile {
         return file;
     }
 };
+
+export async function writeUserFile(fileId: string, userid: string, filePath: string, _public: boolean) {
+    const userFilesDir = path.join(process.env["STORAGE_DIRECTORY"] ?? "user_files/", userid);
+    const userFilesRawDir = path.join(userFilesDir, "raw");
+
+    try {
+        await fs.readdir(userFilesDir);
+        await fs.readdir(userFilesRawDir);
+    } catch (e) {
+        await fs.mkdir(userFilesDir);
+        await fs.mkdir(userFilesRawDir);
+    }
+
+    await fs.copyFile(filePath, path.join(userFilesRawDir, fileId));
+
+    return `/file/${userid}/${fileId}`;
+}

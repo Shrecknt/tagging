@@ -6,10 +6,12 @@ import URL from "node:url";
 import WebSocket from "ws";
 import mime from "mime";
 import formidable from "formidable";
-import { handleWebsocketMessage, writeUserFile, websocketEvents } from "./websocket";
+import { handleWebsocketMessage, websocketEvents } from "./websocket";
 import * as DB from "./database";
 import * as Auth from "./auth";
 import { allowedMimeTypes } from "./database/file";
+
+require("dotenv").config();
 
 const server = http.createServer(async (req, res) => {
     const url = URL.parse(req.url ?? "/");
@@ -132,7 +134,7 @@ const server = http.createServer(async (req, res) => {
             res.write("Uploading...");
             res.end();
             /* Write file to disk, this will be changed later */
-            await writeUserFile(
+            await DB.writeUserFile(
                 fileId,
                 user.userId,
                 file.filepath,
@@ -151,7 +153,10 @@ const server = http.createServer(async (req, res) => {
                 ),
                 [],
                 fields["public"][0] === "on",
-                file.size);
+                file.size,
+                file.originalFilename ?? "no title",
+                ""
+            );
             await userFile.writeChanges();
             return;
         }
@@ -270,7 +275,7 @@ async function handleUserFileRequest(
 
     // console.log(fileUserId, fileId);
 
-    const userFilesPath = path.resolve("user_files/");
+    const userFilesPath = path.resolve(process.env["STORAGE_DIRECTORY"] ?? "user_files/");
     // const requestDataPath = path.join(userFilesPath, fileUserId + "/", "data/", fileId);
     const requestRawPath = path.join(userFilesPath, fileUserId + "/", "raw/", fileId);
 
@@ -354,9 +359,9 @@ function parseCookies(str: string | undefined) {
 }
 
 async function main() {
-    if (!fsSync.existsSync("user_files/")) await fs.mkdir("user_files");
+    if (!fsSync.existsSync(process.env["STORAGE_DIRECTORY"] ?? "user_files/")) await fs.mkdir(process.env["STORAGE_DIRECTORY"] ?? "user_files/");
     await DB.User.updateUsers();
-    server.listen(61559);
+    server.listen(process.env["PORT"] ?? 61559);
 
     // Change this to `true` if you want
     // to move legacy user json files to

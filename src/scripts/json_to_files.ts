@@ -25,7 +25,9 @@ async function main() {
                 userFile.mimeType ?? null,
                 userFile.tags,
                 userFile.public,
-                fsSync.statSync(userFilePath).size
+                fsSync.statSync(userFilePath).size,
+                userFile.fileName,
+                ""
             );
             await generatedUserFile.writeChanges();
         }

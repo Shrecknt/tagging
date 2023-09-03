@@ -6,7 +6,7 @@ import { User } from "./database/user"
 import { UserFile } from "./database/file";
 
 export { User } from "./database/user";
-export { UserFile } from "./database/file";
+export { UserFile, writeUserFile } from "./database/file";
 
 require("dotenv").config();
 
@@ -18,8 +18,10 @@ export async function useClient() {
     if (client !== undefined) return client;
     client = new Client({
         "database": "tagging",
-        "user": "postgres",
-        "password": process.env.POSTGRES_PASSWORD
+        "user": process.env.POSTGRES_USER ?? "postgres",
+        "password": process.env.POSTGRES_PASSWORD,
+        "host": process.env.POSTGRES_HOST,
+        "port": Number(process.env.POSTGRES_PORT ?? 5432)
     });
     await client.connect();
     return client;
@@ -44,7 +46,7 @@ async function main() {
     const shreckntUser = await User.fromUsername("Shrecknt");
     assert(shreckntUser !== undefined);
 
-    const newFile = new UserFile("12345", shreckntUser.userId, "test.txt", "text/plain", [ "test-tag" ], false, 0);
+    const newFile = new UserFile("12345", shreckntUser.userId, "test.txt", "text/plain", [ "test-tag" ], false, 0, "test.txt", "");
     newFile.writeChanges();
 
     const searchTag = await UserFile.fromUserId(shreckntUser.userId, [ "test-tag" ]);

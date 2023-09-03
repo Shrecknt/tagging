@@ -23,6 +23,8 @@ CREATE TABLE files (
 	tags TEXT[] NOT NULL,
 	_public BOOLEAN NOT NULL,
 	fileSize BIGINT NOT NULL,
+	title TEXT NOT NULL,
+	description TEXT NOT NULL,
 	UNIQUE (fileId)
 );
 

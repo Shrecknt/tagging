@@ -1,7 +1,7 @@
-const ws = new WebSocket(`wss://${window.location.hostname}`);
+const ws = new WebSocket(`wss://${window.location.host}/api`);
 ws.addEventListener("open", (event) => {
     console.log("open event", event);
-    currentQuery = "meme";
+    currentQuery = "";
     ws.send(JSON.stringify({ "type": "search", "value": currentQuery }));
 });
 ws.addEventListener("close", (event) => {
