@@ -8,7 +8,6 @@ import mime from "mime";
 import formidable from "formidable";
 import { handleWebsocketMessage, websocketEvents } from "./websocket";
 import * as DB from "./database";
-import * as Auth from "./auth";
 import { allowedMimeTypes } from "./database/file";
 
 require("dotenv").config();
@@ -19,7 +18,7 @@ const server = http.createServer(async (req, res) => {
     const ip = req.headers["cf-connecting-ip"]?.toString() ?? req.headers["x-forwarded-for"]?.toString() ?? "unknown";
 
     const cookies = parseCookies(req.headers["cookie"]);
-    const [authorized, user] = await Auth.checkAuthorization(cookies["Authorization"]);
+    const [authorized, user] = await DB.Session.checkAuthorization(cookies["Authorization"]);
 
     if (authorized) {
         if (!user.ips.has(ip)) {
@@ -72,9 +71,9 @@ const server = http.createServer(async (req, res) => {
                 res.end();
                 return;
             }
-            const hashedPassword = await Auth.generatePasswordHash(password);
+            const hashedPassword = await DB.generatePasswordHash(password);
             let user = await new DB.User(username, hashedPassword).writeChanges();
-            const sessionToken = Auth.createSession(user, 3600000);
+            const sessionToken = (await DB.Session.createSession(user, 3600000)).sessionId;
             res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
             res.write("Account successfully created");
             res.end();
@@ -98,7 +97,7 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
             const passwordHash = user.password;
-            const correctPassword = await Auth.checkPasswordHash(password, passwordHash);
+            const correctPassword = await DB.checkPasswordHash(password, passwordHash);
             if (!correctPassword) {
                 res.writeHead(303, { "Location": "/login?error=2&username=" + encodeURIComponent(username ?? "") });
                 res.write("Incorrect password");
@@ -106,7 +105,7 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
 
-            const sessionToken = Auth.createSession(user, 3600000);
+            const sessionToken = (await DB.Session.createSession(user, 3600000)).sessionId;
 
             res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
             res.write("Sign in successful!");
@@ -350,7 +349,7 @@ wss.on("connection", async (socket, req) => {
     const cookies = parseCookies(req.headers["cookie"]);
     const url = URL.parse(req.url ?? "/");
     // console.log("new connection", cookies);
-    const [authorized, user] = await Auth.checkAuthorization(cookies["Authorization"]);
+    const [authorized, user] = await DB.Session.checkAuthorization(cookies["Authorization"]);
 
     socket.on("message", (data, isBinary) => {
         // console.log("new message", isBinary ? data : data.toString());

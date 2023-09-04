@@ -4,9 +4,11 @@ import { Client } from "pg";
 
 import { User } from "./database/user"
 import { UserFile } from "./database/file";
+import { Session } from "./database/auth";
 
 export { User } from "./database/user";
 export { UserFile, writeUserFile } from "./database/file";
+export { Session, generatePasswordHash, checkPasswordHash } from "./database/auth";
 
 require("dotenv").config();
 

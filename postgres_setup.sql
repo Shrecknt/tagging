@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS usessions;
 DROP TABLE IF EXISTS files;
 DROP TABLE IF EXISTS users;
 
@@ -26,6 +27,16 @@ CREATE TABLE files (
 	description TEXT NOT NULL,
 	visibility INT NOT NULL,
 	UNIQUE (fileId)
+);
+
+CREATE TABLE usessions (
+    sessionId TEXT NOT NULL,
+    userId TEXT NOT NULL,
+	PRIMARY KEY (sessionId),
+	CONSTRAINT fk_user
+		FOREIGN KEY(userId) 
+		REFERENCES users(userId),
+    expires BIGINT NOT NULL
 );
 
 
