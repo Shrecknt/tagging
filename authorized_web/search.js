@@ -19,7 +19,7 @@ ws.addEventListener("message", async (msgBlob) => {
     switch (data.type) {
         case "searchResults":
             if (data.query === currentQuery) {
-                // if (data.value.length < 1) allResultsLoaded = true;
+                if (data.value.length < 1) allResultsLoaded = true;
                 loadSearchResults(data.value);
                 if (checkScroll() && !allResultsLoaded) requestNextPage();
             }
@@ -48,9 +48,9 @@ function displayResult(value) {
     const thumbnail = document.createElement("DIV");
     thumbnail.classList.add("thumbnail");
     if ((value.mimetype ?? "").startsWith("image/")) {
-        thumbnail.style.backgroundImage = `url(${url}${suffix})`;
+        thumbnail.style.backgroundImage = `url(${url}${suffix}?direct)`;
     } else {
-        thumbnail.style.backgroundImage = "url(/unknown.png)";
+        thumbnail.style.backgroundImage = "url(/unknown.png?direct)";
     }
     container.appendChild(thumbnail);
     const caption = document.createElement("DIV");

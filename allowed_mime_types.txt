@@ -65,3 +65,5 @@ audio/3gpp
 video/3gpp2
 audio/3gpp2
 application/x-7z-compressed
+video/x-matroska
+audio/flac

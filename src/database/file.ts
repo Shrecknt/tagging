@@ -131,19 +131,26 @@ export class UserFile {
         return files;
     }
 
-    static async fromTags(_tags: string[] | Set<string> = [], page: number = 0, pageSize = 8) {
+    static async fromTags(_tags: string[] | Set<string> = [], page: number = 0, pageSize: number = 8, user?: User | string) {
+        const userId = (user === undefined) ? undefined : ((user instanceof User) ? user.userId : user);
         const tags: string[] = (_tags instanceof Set ? [..._tags] : _tags)
             .map(tag => tag.toLowerCase())
             .filter(tag => tag !== "");
         const client = await useClient();
-        const res = await client.query(`
+        let query = `
             SELECT * FROM files
             WHERE ARRAY(
 		        SELECT UNNEST($1::TEXT[])
 		        EXCEPT SELECT UNNEST(tags)
 	        ) = '{}'::TEXT[]
-            LIMIT $2::INT OFFSET $3::INT;
-        `, [ tags, pageSize, page * pageSize ]);
+        `;
+        const queryArguments: any[] = [tags, pageSize, page * pageSize];
+        if (userId !== undefined) {
+            query += " AND NOT (userId != $4::TEXT AND visibility < 2)"
+            queryArguments.push(userId);
+        }
+        query += " LIMIT $2::INT OFFSET $3::INT;";
+        const res = await client.query(query, queryArguments);
         const files = res.rows.map(UserFile.fromObject);
         return files;
     }

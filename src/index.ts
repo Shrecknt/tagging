@@ -31,7 +31,7 @@ const server = http.createServer(async (req, res) => {
     const isHighContentEndpoint = highContentEndpoints.includes(url.pathname ?? "/");
 
     if (isHighContentEndpoint && !authorized) {
-        res.writeHead(403, { "Content-Type": "text/plain" });
+        res.writeHead(303, { "Location": "/login" });
         res.write("Authorization is required for this endpoint");
         res.end();
         return;
@@ -296,6 +296,43 @@ async function handleUserFileRequest(
         mimeType = "text/plain";
     }
     const fileName = userFile.fileName;
+
+    if (url.query !== "direct") {
+        let tags = `
+        <meta property="og:title" content="test" />
+        <meta property="og:url" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}" />
+        <meta name="twitter:card" content="summary_large_image" />
+        `;
+        if (mimeType.startsWith("video/")) {
+            tags += `
+            <meta property="og:type" content="video.other" />
+            <meta property="og:video" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}?direct" />
+            <meta property="og:image" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}?direct" />
+            `;
+        } else if (mimeType.startsWith("image/")) {
+            tags += `
+            <meta property="og:type" content="website" />
+            <meta property="og:image" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}?direct" />
+            `;
+        } else {
+            tags += `
+            <meta property="og:type" content="website" />
+            `;
+        }
+
+        res.writeHead(200, { "Content-Type": "text/html" });
+        res.write(
+            (await fs.readFile("web/viewer.html"))
+            .toString()
+            .replace(/{{tags}}/g, tags)
+            .replace(/{{fileUserId}}/g, fileUserId)
+            .replace(/{{fileId}}/g, fileId)
+            .replace(/{{fileName}}/g, fileName)
+            .replace(/{{mimeType}}/g, mimeType)
+        );
+        res.end();
+        return true;
+    }
 
     // const stat = fsSync.statSync(requestRawPath);
 

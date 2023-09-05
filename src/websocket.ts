@@ -23,12 +23,8 @@ export async function handleWebsocketMessage(
     const data = JSON.parse(rawData.toString()) as Packet;
     if (data.type === undefined || data.value === undefined) return;
     if (data.type === "search") {
-        const tags = String(data.value).split(",").map(tag => tag.trim());
-        const results = (await UserFile.fromTags(tags, Number((data as any).page) ?? 0)).filter(result => {
-            // do something with data.value to filter the results
-            if (result.userId !== user.userId && result.visibility < 2) return false;
-            return true;
-        });
+        const tags = String(data.value ?? "").split(",").map(tag => tag.trim());
+        const results = (await UserFile.fromTags(tags, Number((data as any).page) ?? 0, undefined, user));
         const returnValue = { "type": "searchResults", "value": results.map(file => {
             const res = file.toObject();
             res.filesize = Number(res.filesize) as unknown as BigInt;
