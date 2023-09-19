@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en" prefix="og: https://ogp.me/ns#">
+<head>
+    <%# <!-- let tags = `
+    <meta property="og:title" content="test" />
+    <meta property="og:url" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    `;
+    if (mimeType.startsWith("video/")) {
+        tags += `
+        <meta property="og:type" content="video.other" />
+        <meta property="og:video" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}?direct" />
+        <meta property="og:image" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}?direct" />
+        `;
+    } else if (mimeType.startsWith("image/")) {
+        tags += `
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}?direct" />
+        `;
+    } else {
+        tags += `
+        <meta property="og:type" content="website" />
+        `;
+    } -->
+    <!-- <meta property="og:title" content="{{fileName}}" /> -->
+
+    <!-- <!DOCTYPE html>
+    <html lang="en">
+        <head>
+            <link rel="canonical" href="https://twitter.com/DontShowYourCat/status/1698153773187658154" />
+            <meta property="og:url" content="https://twitter.com/DontShowYourCat/status/1698153773187658154" />
+            <meta property="theme-color" content="#00a8fc" />
+            <meta property="twitter:site" content="@DontShowYourCat" />
+            <meta property="twitter:creator" content="@DontShowYourCat" />
+            <meta property="twitter:title" content="Dont Show Your Cat (@DontShowYourCat)" />
+            <meta http-equiv="refresh" content="0;url=https://twitter.com/DontShowYourCat/status/1698153773187658154" />
+            <meta property="twitter:player:height" content="1280" />
+            <meta property="twitter:player:width" content="720" />
+            <meta property="twitter:player:stream" content="https://video.twimg.com/ext_tw_video/1698153618573008896/pu/vid/720x1280/dNmOUAxou7tFyMFd.mp4?tag=12" />
+            <meta property="twitter:player:stream:content_type" content="video/mp4" />
+            <meta property="og:video" content="https://video.twimg.com/ext_tw_video/1698153618573008896/pu/vid/720x1280/dNmOUAxou7tFyMFd.mp4?tag=12" />
+            <meta property="og:video:secure_url" content="https://video.twimg.com/ext_tw_video/1698153618573008896/pu/vid/720x1280/dNmOUAxou7tFyMFd.mp4?tag=12" />
+            <meta property="og:video:height" content="1280" />
+            <meta property="og:video:width" content="720" />
+            <meta property="og:video:type" content="video/mp4" />
+            <meta property="twitter:image" content="0" />
+            <meta property="og:title" content="Dont Show Your Cat (@DontShowYourCat)" />
+            <meta property="og:description" content="one small fry to go" />
+            <meta property="og:site_name" content="FixTweet" />
+            <meta property="twitter:card" content="player" />
+            <link rel="alternate" href="https://fxtwitter.com/owoembed?text=one%20small%20fry%20to%20go&status=1698153773187658154&author=DontShowYourCat&useXbranding=false" type="application/json+oembed" title="Dont Show Your Cat">
+        </head>
+        <body></body>
+    </html> -->
+    %>
+
+    <%- `<meta property="og:url" content="https://t.shrecked.dev/file/${fileUserId}/${fileId}" />` %>
+    
+    <% if (mimeType.startsWith("video/")) { %>
+        <%- `<meta property="og:video" content="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" />` %>
+        <%- `<meta property="og:video:type" content="${mimeType}" />` %>
+        <%- `<meta property="twitter:card" content="player" />` %>
+        <%- `<link rel="stylesheet" href="/media_rendering/video.css" />` %>
+        <%- `<script src="/media_rendering/video.js" defer></script>` %>
+    <% } %>
+
+    <% if (mimeType.startsWith("audio/")) { %>
+        <%- `<meta property="og:audio" content="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" />` %>
+        <%- `<meta property="og:audio:type" content="${mimeType}" />` %>
+        <%- `<link rel="stylesheet" href="/media_rendering/audio.css" />` %>
+        <%- `<script src="/media_rendering/audio.js" defer></script>` %>
+    <% } %>
+
+    <% if (mimeType.startsWith("image/")) { %>
+        <%- `<meta property="og:image" content="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" />` %>
+        <%- `<meta property="og:image:type" content="${mimeType}" />` %>
+        <%- `<meta name="twitter:card" content="summary_large_image" />` %>
+        <%- `<link rel="stylesheet" href="/media_rendering/image.css" />` %>
+    <% } %>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= fileName %></title>
+    <link rel="stylesheet" href="/generic_styles.css">
+</head>
+<body>
+
+    <% if (mimeType.startsWith("video/")) { %>
+        <%- `<video autoplay controls>` %>
+            <%- `<source src="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" type="${mimeType}" />` %>
+        <%- `</video>` %>
+    <% } %>
+
+    <% if (mimeType.startsWith("audio/")) { %>
+        <%- `<video style="height: 40px; width: 66%;" autoplay controls>` %>
+            <%- `<source src="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" type="${mimeType}" />` %>
+        <%- `</video>` %>
+    <% } %>
+
+    <% if (mimeType.startsWith("image/")) { %>
+        <%- `<img src="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" alt="` %><%= `${fileName}` %><%- `" />` %>
+    <% } %>
+
+</body>
+</html>

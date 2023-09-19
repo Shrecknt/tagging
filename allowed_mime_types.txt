@@ -67,3 +67,4 @@ audio/3gpp2
 application/x-7z-compressed
 video/x-matroska
 audio/flac
+video/quicktime

@@ -1,11 +1,13 @@
 import http from "node:http";
 import fs from "node:fs/promises";
-import fsSync from "node:fs";
+import fsSync, { PathLike } from "node:fs";
 import path from "node:path";
 import URL from "node:url";
 import WebSocket from "ws";
 import mime from "mime";
 import formidable from "formidable";
+import ejs from "ejs";
+import { minify } from "html-minifier";
 import { handleWebsocketMessage, websocketEvents } from "./websocket";
 import * as DB from "./database";
 import { allowedMimeTypes } from "./database/file";
@@ -201,10 +203,10 @@ const server = http.createServer(async (req, res) => {
         res.end();
     }
 
-    if (url.pathname === "/") url.pathname = "/index.html";
+    if (url.pathname === "/") url.pathname = "/index.ejs";
     const webPath = path.resolve("web/");
-    let requestPath = path.join(webPath, url.pathname ?? "/index.html");
-    if (!/\.[a-zA-Z]+/g.test(requestPath)) requestPath += ".html";
+    let requestPath = path.join(webPath, url.pathname ?? "/index.ejs");
+    if (!/\.[a-zA-Z]+/g.test(requestPath)) requestPath += ".ejs";
     if (!requestPath.startsWith(webPath)) {
         return;
     }
@@ -213,18 +215,17 @@ const server = http.createServer(async (req, res) => {
             throw 0;
         }
     } catch (e) {
-        let file = await fs.readFile("web/404.html");
+        let file = await renderPage("web/404.ejs", { ip, cookies, user });
         res.writeHead(404, { "Content-Type": "text/html" });
         res.write(file);
         res.end();
         return;
     }
 
-    let file: Buffer | string = await fs.readFile(requestPath);
-    const mimeType = mime.getType(requestPath);
-    if (mimeType === "text/html") {
-        file = file.toString();
-    }
+    let file: Buffer | string = requestPath.endsWith(".ejs")
+        ? await renderPage(requestPath, { ip, cookies, user })
+        : await fs.readFile(requestPath);
+    const mimeType = requestPath.endsWith(".ejs") ? "text/html" : mime.getType(requestPath);
     res.writeHead(200, { "Content-Type": mimeType ?? "text/plain" });
     res.write(file);
     res.end();
@@ -238,10 +239,10 @@ async function handleAuthorizedRequest(
     user: DB.User
 ): Promise<boolean> {
     const url = URL.parse(req.url ?? "/");
-    if (url.pathname === "/") url.pathname = "/index.html";
+    if (url.pathname === "/") url.pathname = "/index.ejs";
     const authorizedWebPath = path.resolve("authorized_web/");
-    let requestPath = path.join(authorizedWebPath, url.pathname ?? "/index.html");
-    if (!/\.[a-zA-Z]+/g.test(requestPath)) requestPath += ".html";
+    let requestPath = path.join(authorizedWebPath, url.pathname ?? "/index.ejs");
+    if (!/\.[a-zA-Z]+/g.test(requestPath)) requestPath += ".ejs";
     if (!requestPath.startsWith(authorizedWebPath)) {
         return false;
     }
@@ -251,11 +252,10 @@ async function handleAuthorizedRequest(
         }
     } catch (e) { return false; }
 
-    let file: Buffer | string = await fs.readFile(requestPath);
-    const mimeType = mime.getType(requestPath);
-    if (mimeType === "text/html") {
-        file = file.toString();
-    }
+    let file: Buffer | string = requestPath.endsWith(".ejs")
+        ? await renderPage(requestPath, { ip, cookies, user })
+        : await fs.readFile(requestPath);
+    const mimeType = requestPath.endsWith(".ejs") ? "text/html" : mime.getType(requestPath);
     res.writeHead(200, { "Content-Type": mimeType ?? "text/plain" });
     res.write(file);
     res.end();
@@ -298,37 +298,12 @@ async function handleUserFileRequest(
     const fileName = userFile.fileName;
 
     if (url.query !== "direct") {
-        let tags = `
-        <meta property="og:title" content="test" />
-        <meta property="og:url" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}" />
-        <meta name="twitter:card" content="summary_large_image" />
-        `;
-        if (mimeType.startsWith("video/")) {
-            tags += `
-            <meta property="og:type" content="video.other" />
-            <meta property="og:video" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}?direct" />
-            <meta property="og:image" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}?direct" />
-            `;
-        } else if (mimeType.startsWith("image/")) {
-            tags += `
-            <meta property="og:type" content="website" />
-            <meta property="og:image" content="https://t.shrecked.dev/file/{{fileUserId}}/{{fileId}}?direct" />
-            `;
-        } else {
-            tags += `
-            <meta property="og:type" content="website" />
-            `;
-        }
-
         res.writeHead(200, { "Content-Type": "text/html" });
         res.write(
-            (await fs.readFile("web/viewer.html"))
-            .toString()
-            .replace(/{{tags}}/g, tags)
-            .replace(/{{fileUserId}}/g, fileUserId)
-            .replace(/{{fileId}}/g, fileId)
-            .replace(/{{fileName}}/g, fileName)
-            .replace(/{{mimeType}}/g, mimeType)
+            await renderPage("web/viewer.ejs", {
+                fileUserId, fileId, fileName, mimeType,
+                ip, cookies, user
+            })
         );
         res.end();
         return true;
@@ -421,6 +396,22 @@ async function main() {
     }
 
     return "Main function complete";
+}
+
+async function renderPage(path: PathLike, data?: ejs.Data): Promise<string> {
+    try {
+        const contents = await fs.readFile(path);
+        const result = await ejs.render(contents.toString(), data, { async: true });
+        const minified = minify(result, {
+            collapseWhitespace: true,
+            minifyJS: true,
+            minifyCSS: true,
+        });
+        return minified;
+    } catch (err) {
+        console.error(err);
+        return "An error occurred while rendering page, check the console for errors";
+    }
 }
 
 main().then(console.log).catch(console.error);
