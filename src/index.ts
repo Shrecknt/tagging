@@ -297,7 +297,7 @@ async function handleUserFileRequest(
     }
     const fileName = userFile.fileName;
 
-    if (url.query !== "direct") {
+    if (url.query !== "direct" && url.query !== "direct.gif") {
         res.writeHead(200, { "Content-Type": "text/html" });
         res.write(
             await renderPage("web/viewer.ejs", {
