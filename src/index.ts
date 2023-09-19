@@ -162,7 +162,8 @@ const server = http.createServer(async (req, res) => {
                 file.size,
                 file.originalFilename ?? "no title",
                 "",
-                (fields["public"][0] === "on" ? 1 : 0)
+                (fields["public"][0] === "on" ? 1 : 0),
+                null
             );
             await userFile.writeChanges();
             return;
@@ -273,11 +274,26 @@ async function handleUserFileRequest(
     // url must be /file/*
 
     let pathNameArr = (url.pathname ?? "/").split("/");
-    if (pathNameArr.splice(0, 2)[1] !== "file") return false;
-    if (pathNameArr.length !== 2) return false;
-    const fileUserId = pathNameArr[0];
-    let fileId = pathNameArr[1];
-    if (fileId.endsWith(".gif")) fileId = fileId.substring(0, fileId.length - 4);
+    const isShortUrl = pathNameArr[1] === "f";
+    if (!["file", "f"].includes(pathNameArr.splice(0, 2)[1])) return false;
+
+    let fileUserId: string;
+    let fileId: string;
+    let userFile: DB.UserFile | undefined;
+    if (isShortUrl) {
+        userFile = await DB.UserFile.fromShortUrl(pathNameArr[0]);
+        if (userFile === undefined) return false;
+        fileUserId = userFile.userId;
+        fileId = userFile.fileId;
+    } else {
+        if (pathNameArr.length !== 2) return false;
+        fileUserId = pathNameArr[0];
+        fileId = pathNameArr[1];
+        if (fileId.endsWith(".gif")) fileId = fileId.substring(0, fileId.length - 4);
+        userFile = await DB.UserFile.fromFileId(fileId);
+        if (userFile === undefined) return false;
+    }
+    const shortUrl = userFile.shortUrl;
 
     // console.log(fileUserId, fileId);
 
@@ -285,8 +301,6 @@ async function handleUserFileRequest(
     // const requestDataPath = path.join(userFilesPath, fileUserId + "/", "data/", fileId);
     const requestRawPath = path.join(userFilesPath, fileUserId + "/", "raw/", fileId);
 
-    const userFile = await DB.UserFile.fromFileId(fileId);
-    if (userFile === undefined) return false;
     if (userFile.userId !== fileUserId) return false;
 
     if (userFile.visibility < 1 && user?.userId !== fileUserId) return false;
@@ -301,7 +315,7 @@ async function handleUserFileRequest(
         res.writeHead(200, { "Content-Type": "text/html" });
         res.write(
             await renderPage("web/viewer.ejs", {
-                fileUserId, fileId, fileName, mimeType, userFile,
+                fileUserId, fileId, fileName, mimeType, userFile, isShortUrl, shortUrl,
                 ip, cookies, user
             })
         );

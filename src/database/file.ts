@@ -20,8 +20,9 @@ export class UserFile {
     title: string;
     description: string;
     visibility: number;
+    shortUrl: string | null;
 
-    constructor(fileId: string, userId: string, fileName: string, mimeType: string | null, tags: Set<string> | string[], fileSize: BigInt | number, title: string, description: string, visibility: number) {
+    constructor(fileId: string, userId: string, fileName: string, mimeType: string | null, tags: Set<string> | string[], fileSize: BigInt | number, title: string, description: string, visibility: number, shortUrl: string | null) {
         this.fileId = fileId;
         this.userId = userId;
         this.fileName = fileName;
@@ -35,16 +36,17 @@ export class UserFile {
         }
         this.title = title;
         this.description = description;
+        this.shortUrl = shortUrl;
     }
 
     async writeChanges(): Promise<UserFile> {
         const client = await useClient();
         const res = await client.query(`
             INSERT INTO files
-                VALUES ($1::TEXT, $2::TEXT, $3::TEXT, $4::TEXT, $5::TEXT[], $6::BIGINT, $7::TEXT, $8::TEXT, $9::INT)
-                ON CONFLICT (fileId) DO UPDATE SET (fileId, userId, fileName, mimeType, tags, fileSize, title, description, visibility)
-                    = (excluded.fileId, excluded.userId, excluded.fileName, excluded.mimeType, excluded.tags, excluded.fileSize, excluded.title, excluded.description, excluded.visibility);
-        `, [this.fileId, this.userId, this.fileName, this.mimeType, [...this.tags], this.fileSize, this.title, this.description, this.visibility]);
+                VALUES ($1::TEXT, $2::TEXT, $3::TEXT, $4::TEXT, $5::TEXT[], $6::BIGINT, $7::TEXT, $8::TEXT, $9::INT, $10::TEXT)
+                ON CONFLICT (fileId) DO UPDATE SET (fileId, userId, fileName, mimeType, tags, fileSize, title, description, visibility, shortUrl)
+                    = (excluded.fileId, excluded.userId, excluded.fileName, excluded.mimeType, excluded.tags, excluded.fileSize, excluded.title, excluded.description, excluded.visibility, excluded.shortUrl);
+        `, [this.fileId, this.userId, this.fileName, this.mimeType, [...this.tags], this.fileSize, this.title, this.description, this.visibility, this.shortUrl]);
         return this;
     }
 
@@ -64,7 +66,8 @@ export class UserFile {
             filesize: this.fileSize,
             title: this.title,
             description: this.description,
-            visibility: this.visibility
+            visibility: this.visibility,
+            shorturl: this.shortUrl
         };
     }
 
@@ -82,7 +85,9 @@ export class UserFile {
         filesize?: BigInt | number,
         title: string,
         description: string,
-        visibility: number
+        visibility: number,
+        shortUrl?: string,
+        shorturl?: string
     }) {
         if (obj.fileId ?? obj.fileid === undefined) throw new Error("Must provide either `fileId` or `fileid`");
         if (obj.userId ?? obj.userid === undefined) throw new Error("Must provide either `userId` or `userid`");
@@ -97,7 +102,8 @@ export class UserFile {
             obj.fileSize ?? obj.filesize,
             obj.title,
             obj.description,
-            obj.visibility
+            obj.visibility,
+            obj.shortUrl ?? obj.shorturl ?? null
         );
     }
 
@@ -108,6 +114,15 @@ export class UserFile {
             fileId = Array.from(Array(32), () => fileIdChars[Math.floor(Math.random() * fileIdChars.length)]).join("");
         } while (await UserFile.fromFileId(fileId) !== undefined);
         return fileId;
+    }
+
+    static async generateShortUrl() {
+        const shortUrlChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        let shortUrl = "";
+        do {
+            shortUrl = Array.from(Array(8), () => shortUrlChars[Math.floor(Math.random() * shortUrlChars.length)]).join("");
+        } while (await UserFile.fromShortUrl(shortUrl) !== undefined);
+        return shortUrl;
     }
 
     static async fromUserId(userId: string, _tags: string[] | Set<string> = [], page: number = 0, pageSize = 8) {
@@ -159,6 +174,15 @@ export class UserFile {
         const client = await useClient();
         const res = await client.query("SELECT * FROM files WHERE fileId = $1::TEXT;", [ fileId ]);
         if (res.rowCount > 1) throw new Error("Found more than one file with given fileId (what?)");
+        if (res.rowCount < 1) return undefined;
+        const file = UserFile.fromObject(res.rows[0]);
+        return file;
+    }
+
+    static async fromShortUrl(shortUrl: string) {
+        const client = await useClient();
+        const res = await client.query("SELECT * FROM files WHERE shortUrl = $1::TEXT;", [ shortUrl ]);
+        if (res.rowCount > 1) throw new Error("Found more than one file with given shortUrl (what?)");
         if (res.rowCount < 1) return undefined;
         const file = UserFile.fromObject(res.rows[0]);
         return file;

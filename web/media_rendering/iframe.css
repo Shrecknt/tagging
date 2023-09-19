@@ -7,5 +7,7 @@ iframe {
     user-select: none;
     outline: none;
     border: none;
+    background-color: #ddd;
+    color: black;
     filter: invert( 100% );
 }

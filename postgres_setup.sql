@@ -26,6 +26,7 @@ CREATE TABLE files (
 	title TEXT NOT NULL,
 	description TEXT NOT NULL,
 	visibility INT NOT NULL,
+	shortUrl TEXT,
 	UNIQUE (fileId)
 );
 

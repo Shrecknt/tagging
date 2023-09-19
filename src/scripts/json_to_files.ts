@@ -27,7 +27,8 @@ async function main() {
                 fsSync.statSync(userFilePath).size,
                 userFile.fileName,
                 "",
-                (userFile.public ? 1 : 0)
+                (userFile.public ? 1 : 0),
+                null
             );
             await generatedUserFile.writeChanges();
         }
