@@ -2,6 +2,7 @@
 <html lang="en" prefix="og: https://ogp.me/ns#">
 <head>
     <%- `<meta property="og:url" content="https://t.shrecked.dev/file/${fileUserId}/${fileId}" />` %>
+    <%- `<meta property="og:title" content="${userFile.title.replace(/"/g, "\\\"")}" />` %>
     
     <% if (mimeType.startsWith("video/")) { %>
         <%- `<meta property="og:video" content="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" />` %>
@@ -9,20 +10,18 @@
         <%- `<meta property="twitter:card" content="player" />` %>
         <%- `<link rel="stylesheet" href="/media_rendering/video.css" />` %>
         <%- `<script src="/media_rendering/video.js" defer></script>` %>
-    <% } %>
-
-    <% if (mimeType.startsWith("audio/")) { %>
+    <% } else if (mimeType.startsWith("audio/")) { %>
         <%- `<meta property="og:audio" content="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" />` %>
         <%- `<meta property="og:audio:type" content="${mimeType}" />` %>
         <%- `<link rel="stylesheet" href="/media_rendering/audio.css" />` %>
         <%- `<script src="/media_rendering/audio.js" defer></script>` %>
-    <% } %>
-
-    <% if (mimeType.startsWith("image/")) { %>
+    <% } else if (mimeType.startsWith("image/")) { %>
         <%- `<meta property="og:image" content="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct.gif" />` %>
         <%- `<meta property="og:image:type" content="${mimeType}" />` %>
         <%- `<meta name="twitter:card" content="summary_large_image" />` %>
         <%- `<link rel="stylesheet" href="/media_rendering/image.css" />` %>
+    <% } else { %>
+        <%- `<link rel="stylesheet" href="/media_rendering/iframe.css" />` %>
     <% } %>
 
     <meta charset="UTF-8">
@@ -36,16 +35,14 @@
         <%- `<video autoplay controls>` %>
             <%- `<source src="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" type="${mimeType}" />` %>
         <%- `</video>` %>
-    <% } %>
-
-    <% if (mimeType.startsWith("audio/")) { %>
+    <% } else if (mimeType.startsWith("audio/")) { %>
         <%- `<video style="height: 40px; width: 66%;" autoplay controls>` %>
             <%- `<source src="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" type="${mimeType}" />` %>
         <%- `</video>` %>
-    <% } %>
-
-    <% if (mimeType.startsWith("image/")) { %>
-        <%- `<img src="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" alt="` %><%= `${fileName}` %><%- `" />` %>
+    <% } else if (mimeType.startsWith("image/")) { %>
+        <%- `<img src="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" alt="${fileName.replace(/"/g, "\\\"")}" />` %>
+    <% } else { %>
+        <%- `<iframe src="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct"></iframe>` %>
     <% } %>
 
 </body>

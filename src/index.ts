@@ -301,7 +301,7 @@ async function handleUserFileRequest(
         res.writeHead(200, { "Content-Type": "text/html" });
         res.write(
             await renderPage("web/viewer.ejs", {
-                fileUserId, fileId, fileName, mimeType,
+                fileUserId, fileId, fileName, mimeType, userFile,
                 ip, cookies, user
             })
         );

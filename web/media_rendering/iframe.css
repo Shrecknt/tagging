@@ -1,0 +1,11 @@
+iframe {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 90%;
+    height: 90%;
+    user-select: none;
+    outline: none;
+    border: none;
+    filter: invert( 100% );
+}
