@@ -125,7 +125,7 @@ export class UserFile {
         return shortUrl;
     }
 
-    static async fromUserId(userId: string, _tags: string[] | Set<string> = [], page: number = 0, pageSize = 8) {
+    static async fromUserId(userId: string, _tags: string[] | Set<string> = [], page: number = 0, pageSize = 8, publicOnly = false) {
         const tags = (_tags instanceof Set ? [..._tags] : _tags).map(tag => tag.toLowerCase());
         const client = await useClient();
         let query = "SELECT * FROM files WHERE userId = $1::TEXT";
@@ -138,6 +138,9 @@ export class UserFile {
 	        ) = '{}'::TEXT[]`;
             params.push(tags);
             paramNumber++;
+        }
+        if (publicOnly) {
+            query += " AND visibility > 2";
         }
         query += ` LIMIT \$${paramNumber++}::INT OFFSET \$${paramNumber++}::INT;`;
         params.push(pageSize, page * pageSize);
@@ -160,7 +163,9 @@ export class UserFile {
 	        ) = '{}'::TEXT[]
         `;
         const queryArguments: any[] = [tags, pageSize, page * pageSize];
-        if (userId !== undefined) {
+        if (userId === undefined) {
+            query += " AND visibility > 2";
+        } else {
             query += " AND NOT (userId != $4::TEXT AND visibility < 2)"
             queryArguments.push(userId);
         }

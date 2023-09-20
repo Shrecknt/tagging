@@ -11,6 +11,7 @@ import { minify } from "html-minifier";
 import { handleWebsocketMessage, websocketEvents } from "./websocket";
 import * as DB from "./database";
 import { allowedMimeTypes } from "./database/file";
+import { handleApiRequest } from "./api";
 
 require("dotenv").config();
 
@@ -53,8 +54,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (url.pathname === "/signup" && !authorized) {
-            const { username: _username, password: _password } = fields;
-            const username = _username[0], password = _password[0];
+            const [ username, password ] = [ fields.username[0], fields.password[0] ];
             if (username === undefined
                 || password === undefined
                 || username.includes("\n")
@@ -83,26 +83,22 @@ const server = http.createServer(async (req, res) => {
         }
 
         if (url.pathname === "/login" && !authorized) {
-            const { username: _username, password: _password } = fields;
-            const username = _username[0], password = _password[0];
+            const [ username, password ] = [ fields.username[0], fields.password[0] ];
             if (username === undefined || password === undefined) {
                 res.writeHead(303, { "Location": "/login?error=0&username=" + encodeURIComponent(username ?? "") });
-                res.write("Invalid username or password");
                 res.end();
                 return;
             }
             const user = await DB.User.fromUsername(username);
             if (user === undefined) {
-                res.writeHead(303, { "Location": "/login?error=1&username=" + encodeURIComponent(username ?? "") });
-                res.write("No account was found with the given username");
+                res.writeHead(303, { "Location": "/login?error=0&username=" + encodeURIComponent(username ?? "") });
                 res.end();
                 return;
             }
             const passwordHash = user.password;
             const correctPassword = await DB.checkPasswordHash(password, passwordHash);
             if (!correctPassword) {
-                res.writeHead(303, { "Location": "/login?error=2&username=" + encodeURIComponent(username ?? "") });
-                res.write("Incorrect password");
+                res.writeHead(303, { "Location": "/login?error=0&username=" + encodeURIComponent(username ?? "") });
                 res.end();
                 return;
             }
@@ -173,6 +169,18 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(404, { "Content-Type": "text/plain" });
         res.write("Unknown endpoint for POST request and current state");
         res.end();
+    }
+
+    if (url.pathname?.startsWith("/api/")) {
+        try {
+            let success = await handleApiRequest(req, res, ip, cookies, user, authorized, url);
+            if (success) return;
+        } catch (err) {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.write(JSON.stringify({ "error": String(err) }));
+            res.end();
+            return;
+        }
     }
 
     if (authorized) {
