@@ -177,7 +177,7 @@ const server = http.createServer(async (req, res) => {
             if (success) return;
         } catch (err) {
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.write(JSON.stringify({ "error": String(err) }));
+            res.write(JSON.stringify({ "error": String(err), "data": {} }));
             res.end();
             return;
         }
