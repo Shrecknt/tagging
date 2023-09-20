@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>An error occurred while rendering</title>
+    <link rel="stylesheet" href="/generic_styles.css">
+
+    <style>
+        textarea {
+            position: absolute;
+            inset: 0;
+            margin: auto;
+            width: 90%;
+            height: 90%;
+            user-select: none;
+            outline: none;
+            border: none;
+            background-color: #222;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <textarea readonly>An error occurred while rendering this page, if you could please report the error along with all the following information that would be cool
+        <%= "\n" + stack.replace(/\/home\/[^\/]+\//g, "~/") _%>
+        <%= "\n\n" + error.stack.replace(/\/home\/[^\/]+\//g, "~/") _%>
+        <%= "\n\nPath: " + path.replace(/\/home\/[^\/]+\//g, "~/") _%>
+        <%= "\n\nData: " + JSON.stringify(data, (key, value) => (typeof value === "bigint") ? value.toString() : value).replace(/\/home\/[^\/]+\//g, "~/") _%></textarea>
+
+</body>
+
+</html>

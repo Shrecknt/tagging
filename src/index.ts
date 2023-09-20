@@ -6,7 +6,7 @@ import URL from "node:url";
 import WebSocket from "ws";
 import mime from "mime";
 import formidable from "formidable";
-import ejs from "ejs";
+import ejs, { render } from "ejs";
 import { minify } from "html-minifier";
 import { handleWebsocketMessage, websocketEvents } from "./websocket";
 import * as DB from "./database";
@@ -363,6 +363,7 @@ async function handleUserFileRequest(
         "Content-Type": mimeType ?? "text/plain",
         "Content-Disposition": `filename="${encodeURIComponent(fileName)}"`
     });
+
     res.write(await fs.readFile(requestRawPath));
     res.end();
 
@@ -412,7 +413,8 @@ async function main() {
     return "Main function complete";
 }
 
-async function renderPage(path: PathLike, data?: ejs.Data): Promise<string> {
+async function renderPage(path: PathLike, data?: ejs.Data, endOnError: boolean = false): Promise<string> {
+    const stack = "Call Stack:" + (new Error().stack)?.substring(5);
     try {
         const contents = await fs.readFile(path);
         const result = await ejs.render(contents.toString(), data, { async: true });
@@ -423,8 +425,19 @@ async function renderPage(path: PathLike, data?: ejs.Data): Promise<string> {
         });
         return minified;
     } catch (err) {
-        console.error(err);
-        return "An error occurred while rendering page, check the console for errors";
+        if (endOnError) {
+            console.error(err);
+            return "A fatal error has occurred, check console.";
+        } else {
+            if (typeof data === "object") {
+                data["ip"] = "[REDACTED]";
+                data["cookies"] = "[REDACTED]";
+                if (data["user"] !== undefined) {
+                    data["user"]["password"] = "[REDACTED]";
+                }
+            }
+            return await renderPage("web/render_error.ejs", { error: err, stack, path, data }, true);
+        }
     }
 }
 

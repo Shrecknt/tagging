@@ -6,4 +6,5 @@ video {
     max-height: 100%;
     user-select: none;
     outline: none;
+    border-radius: 20px;
 }

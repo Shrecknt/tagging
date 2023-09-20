@@ -2,7 +2,10 @@
 <html lang="en" prefix="og: https://ogp.me/ns#">
 <head>
     <%- `<meta property="og:url" content="https://t.shrecked.dev/file/${fileUserId}/${fileId}" />` %>
+    <%- `<meta property="og:site_name" content="tagging.shrecked.dev" />` %>
     <%- `<meta property="og:title" content="${userFile.title.replace(/"/g, "\\\"")}" />` %>
+    <%- `<meta property="og:description" content="${(userFile.fileSize / 1000000n).toString()} MB" />` %>
+    <%- `<meta property="theme-color" content="#007AFF" />` %>
     
     <% if (mimeType.startsWith("video/")) { %>
         <%- `<meta property="og:video" content="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" />` %>
@@ -44,6 +47,17 @@
     <% } else { %>
         <%- `<iframe src="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct"></iframe>` %>
     <% } %>
+
+    <div id="buttons">
+        <%- `<a href="https://t.shrecked.dev/file/${fileUserId}/${fileId}?direct" download>Download</a>` %>
+        <% if (!isShortUrl) { %>
+            <% if (shortUrl !== null) { %>
+                <%- `<a href="https://t.shrecked.dev/f/${shortUrl}">Short URL</a>` %>
+            <% } %>
+        <% } else { %>
+            <%- `<a href="https://t.shrecked.dev/file/${fileUserId}/${fileId}">Long URL</a>` %>
+        <% } %>
+    </div>
 
 </body>
 </html>
