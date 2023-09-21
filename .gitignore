@@ -7,3 +7,4 @@ raw/
 data/
 .env
 users.json
+options.json

@@ -29,7 +29,14 @@
         <%= "\n" + stack.replace(/\/home\/[^\/]+\//g, "~/") _%>
         <%= "\n\n" + error.stack.replace(/\/home\/[^\/]+\//g, "~/") _%>
         <%= "\n\nPath: " + path.replace(/\/home\/[^\/]+\//g, "~/") _%>
-        <%= "\n\nData: " + JSON.stringify(data, (key, value) => (typeof value === "bigint") ? value.toString() : value).replace(/\/home\/[^\/]+\//g, "~/") _%></textarea>
+        <%= "\n\nData: " + JSON.stringify(
+            data,
+            (key, value) => 
+                (typeof value === "bigint")
+                    ? value.toString()
+                    : value,
+            4
+        ).replace(/\/home\/[^\/]+\//g, "~/") _%></textarea>
 
 </body>
 

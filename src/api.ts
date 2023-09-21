@@ -34,7 +34,7 @@ export async function handleApiRequest(
     }
 
     const head = (res: http.ServerResponse) => res.writeHead(200, { "Content-Type": "application/json" });
-    const write = (res: http.ServerResponse, data: any) => res.write(JSON.stringify({ "error": "", "data": data }, (key, value) => (typeof value === "bigint" ? value.toString() : value)));
+    const write = (res: http.ServerResponse, data: any) => res.write(JSON.stringify({ "error": "", "data": data }, (key, value) => (typeof value === "bigint" ? value.toString() : value), 4));
     
     switch (apiPath[0].toLowerCase()) {
         case "user":
