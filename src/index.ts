@@ -1,6 +1,6 @@
 import http from "node:http";
 import fs from "node:fs/promises";
-import fsSync, { PathLike } from "node:fs";
+import fsSync, { PathLike, link } from "node:fs";
 import path from "node:path";
 import URL from "node:url";
 import WebSocket from "ws";
@@ -100,10 +100,9 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/") url.pathname = "/index.ejs";
     const webPath = path.resolve("web/");
     let requestPath = path.join(webPath, url.pathname ?? "/index.ejs");
+    if (!requestPath.startsWith(webPath)) return;
+    requestPath = await getLink(requestPath);
     if (!/\.[a-zA-Z]+/g.test(requestPath)) requestPath += ".ejs";
-    if (!requestPath.startsWith(webPath)) {
-        return;
-    }
     try {
         if (!(await fs.stat(requestPath)).isFile()) {
             throw 0;
@@ -124,6 +123,21 @@ const server = http.createServer(async (req, res) => {
     res.write(file);
     res.end();
 });
+
+async function getLink(requestPath: string): Promise<string> {
+    const originalPath = requestPath;
+    if (!requestPath.endsWith(".link")) requestPath += ".link";
+    let exists = false;
+    try {
+        exists = fsSync.statSync(requestPath).isFile();
+    } catch (e) {}
+    if (exists) {
+        const contents = (await fs.readFile(requestPath)).toString();
+        const linkPath = path.resolve(contents.trim());
+        return linkPath;
+    }
+    return originalPath;
+}
 
 async function handleAuthorizedRequest(
     req: http.IncomingMessage,
