@@ -13,8 +13,8 @@ export { Session, generatePasswordHash, checkPasswordHash } from "./database/aut
 require("dotenv").config();
 
 let client: Client | undefined;
-export let users: {[key: string]: User | undefined} = {};
-export const setUsers = (newUsers: {[key: string]: User | undefined}) => users = newUsers;
+export let users: { [key: string]: User | undefined } = {};
+export const setUsers = (newUsers: { [key: string]: User | undefined }) => users = newUsers;
 
 export async function useClient() {
     if (client !== undefined) return client;

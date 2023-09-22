@@ -16,7 +16,7 @@ export async function handleApiRequest(
     let body = (await readBody(req)) ?? "{}";
     if (body === "") body = "{}";
 
-    const args: {[key: string]: any} = JSON.parse(body);
+    const args: { [key: string]: any } = JSON.parse(body);
     const query = (url.query?.split("&").map(str => {
         let split = str.split("=");
         return [split[0], split.splice(1).join("=")];
@@ -35,7 +35,7 @@ export async function handleApiRequest(
 
     const head = (res: http.ServerResponse) => res.writeHead(200, { "Content-Type": "application/json" });
     const write = (res: http.ServerResponse, data: any) => res.write(JSON.stringify({ "error": "", "data": data }, (key, value) => (typeof value === "bigint" ? value.toString() : value), 4));
-    
+
     switch (apiPath[0].toLowerCase()) {
         case "user":
             let user;

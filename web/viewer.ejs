@@ -1,30 +1,31 @@
 <!DOCTYPE html>
 <html lang="en" prefix="og: https://ogp.me/ns#">
+
 <head>
     <%- `<meta property="og:url" content="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}" />` %>
     <%- `<meta property="og:site_name" content="${options.siteName ?? "tagging.shrecked.dev"}" />` %>
     <%- `<meta property="og:title" content="${userFile.title.replace(/"/g, "\\\"")}" />` %>
     <%- `<meta property="og:description" content="${(userFile.fileSize / 1000000n).toString()} MB" />` %>
     <%- `<meta property="theme-color" content="#007AFF" />` %>
-    
+
     <% if (mimeType.startsWith("video/")) { %>
-        <%- `<meta property="og:video" content="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" />` %>
-        <%- `<meta property="og:video:type" content="${mimeType}" />` %>
-        <%- `<meta property="twitter:card" content="player" />` %>
-        <%- `<link rel="stylesheet" href="/media_rendering/video.css" />` %>
-        <%- `<script src="/media_rendering/video.js" defer></script>` %>
+    <%- `<meta property="og:video" content="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" />` %>
+    <%- `<meta property="og:video:type" content="${mimeType}" />` %>
+    <%- `<meta property="twitter:card" content="player" />` %>
+    <%- `<link rel="stylesheet" href="/media_rendering/video.css" />` %>
+    <%- `<script src="/media_rendering/video.js" defer></script>` %>
     <% } else if (mimeType.startsWith("audio/")) { %>
-        <%- `<meta property="og:audio" content="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" />` %>
-        <%- `<meta property="og:audio:type" content="${mimeType}" />` %>
-        <%- `<link rel="stylesheet" href="/media_rendering/audio.css" />` %>
-        <%- `<script src="/media_rendering/audio.js" defer></script>` %>
+    <%- `<meta property="og:audio" content="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" />` %>
+    <%- `<meta property="og:audio:type" content="${mimeType}" />` %>
+    <%- `<link rel="stylesheet" href="/media_rendering/audio.css" />` %>
+    <%- `<script src="/media_rendering/audio.js" defer></script>` %>
     <% } else if (mimeType.startsWith("image/")) { %>
-        <%- `<meta property="og:image" content="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct.gif" />` %>
-        <%- `<meta property="og:image:type" content="${mimeType}" />` %>
-        <%- `<meta name="twitter:card" content="summary_large_image" />` %>
-        <%- `<link rel="stylesheet" href="/media_rendering/image.css" />` %>
+    <%- `<meta property="og:image" content="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct.gif" />` %>
+    <%- `<meta property="og:image:type" content="${mimeType}" />` %>
+    <%- `<meta name="twitter:card" content="summary_large_image" />` %>
+    <%- `<link rel="stylesheet" href="/media_rendering/image.css" />` %>
     <% } else { %>
-        <%- `<link rel="stylesheet" href="/media_rendering/iframe.css" />` %>
+    <%- `<link rel="stylesheet" href="/media_rendering/iframe.css" />` %>
     <% } %>
 
     <meta charset="UTF-8">
@@ -32,32 +33,34 @@
     <title><%= fileName %></title>
     <link rel="stylesheet" href="/generic_styles.css">
 </head>
+
 <body>
 
     <% if (mimeType.startsWith("video/")) { %>
-        <%- `<video autoplay controls>` %>
-            <%- `<source src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" type="${mimeType}" />` %>
-        <%- `</video>` %>
+    <%- `<video autoplay controls>` %>
+    <%- `<source src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" type="${mimeType}" />` %>
+    <%- `</video>` %>
     <% } else if (mimeType.startsWith("audio/")) { %>
-        <%- `<video style="height: 40px; width: 66%;" autoplay controls>` %>
-            <%- `<source src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" type="${mimeType}" />` %>
-        <%- `</video>` %>
+    <%- `<video style="height: 40px; width: 66%;" autoplay controls>` %>
+    <%- `<source src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" type="${mimeType}" />` %>
+    <%- `</video>` %>
     <% } else if (mimeType.startsWith("image/")) { %>
-        <%- `<img src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" alt="${fileName.replace(/"/g, "\\\"")}" />` %>
+    <%- `<img src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" alt="${fileName.replace(/"/g, "\\\"")}" />` %>
     <% } else { %>
-        <%- `<iframe src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct"></iframe>` %>
+    <%- `<iframe src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct"></iframe>` %>
     <% } %>
 
     <div id="buttons">
         <%- `<a href="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" download>Download</a>` %>
         <% if (!isShortUrl) { %>
-            <% if (shortUrl !== null) { %>
-                <%- `<a href="https://${options.domain ?? "t.shrecked.dev"}/f/${shortUrl}">Short URL</a>` %>
-            <% } %>
+        <% if (shortUrl !== null) { %>
+        <%- `<a href="https://${options.domain ?? "t.shrecked.dev"}/f/${shortUrl}">Short URL</a>` %>
+        <% } %>
         <% } else { %>
-            <%- `<a href="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}">Long URL</a>` %>
+        <%- `<a href="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}">Long URL</a>` %>
         <% } %>
     </div>
 
 </body>
+
 </html>

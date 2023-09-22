@@ -1,0 +1,9 @@
+{
+    "editor.tabSize": 4,
+    "editor.indentSize": "tabSize",
+    "[html]": {
+        "editor.defaultFormatter": "j69.ejs-beautify"
+    },
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "vscode.emmet"
+}

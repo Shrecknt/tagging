@@ -1,15 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Home Page</title>
     <link rel="stylesheet" href="/generic_styles.css">
 </head>
+
 <body>
     <h1>Home Page</h1>
     <a href="/login">Login</a>
     <br /><br /><br />
-    <button onclick="document.querySelector('#ip').style.display = 'block'">Show IP</button><h3 id="ip" style="display:none;"><%= ip %></h3>
+    <button onclick="document.querySelector('#ip').style.display = 'block'">Show IP</button>
+    <h3 id="ip" style="display:none;">
+        <%= ip %>
+    </h3>
 </body>
+
 </html>

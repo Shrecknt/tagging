@@ -129,7 +129,7 @@ export class UserFile {
         const tags = (_tags instanceof Set ? [..._tags] : _tags).map(tag => tag.toLowerCase());
         const client = await useClient();
         let query = "SELECT * FROM files WHERE userId = $1::TEXT";
-        const params: any[] = [ userId ];
+        const params: any[] = [userId];
         let paramNumber = 2;
         if (tags.length > 0) {
             query += ` AND ARRAY(
@@ -177,7 +177,7 @@ export class UserFile {
 
     static async fromFileId(fileId: string) {
         const client = await useClient();
-        const res = await client.query("SELECT * FROM files WHERE fileId = $1::TEXT;", [ fileId ]);
+        const res = await client.query("SELECT * FROM files WHERE fileId = $1::TEXT;", [fileId]);
         if (res.rowCount > 1) throw new Error("Found more than one file with given fileId (what?)");
         if (res.rowCount < 1) return undefined;
         const file = UserFile.fromObject(res.rows[0]);
@@ -186,7 +186,7 @@ export class UserFile {
 
     static async fromShortUrl(shortUrl: string) {
         const client = await useClient();
-        const res = await client.query("SELECT * FROM files WHERE shortUrl = $1::TEXT;", [ shortUrl ]);
+        const res = await client.query("SELECT * FROM files WHERE shortUrl = $1::TEXT;", [shortUrl]);
         if (res.rowCount > 1) throw new Error("Found more than one file with given shortUrl (what?)");
         if (res.rowCount < 1) return undefined;
         const file = UserFile.fromObject(res.rows[0]);

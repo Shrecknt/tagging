@@ -39,14 +39,3 @@ CREATE TABLE usessions (
 		REFERENCES users(userId),
     expires BIGINT NOT NULL
 );
-
-
--- INSERT INTO users
--- 	VALUES ('test-userId', 'test-username', 'test-password', '{"test-ip"}', false, 0);
-
--- INSERT INTO users
--- 	VALUES ('test-userId', 'test-username2', 'test-password', '{"test-ip"}', false, 0)
--- 	ON CONFLICT (userId, username) DO UPDATE SET (userId, username, password, ips, frozen, permissionLevel)
--- 		= (excluded.userId, excluded.username, excluded.password, excluded.ips, excluded.frozen, excluded.permissionLevel);
-
-SELECT * FROM users;

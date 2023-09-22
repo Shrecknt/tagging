@@ -33,7 +33,7 @@ export async function handleForm(
     };
 
     if (url.pathname === "/signup" && !authorized) {
-        const [ username, password ] = [ arg("username"), arg("password") ];
+        const [username, password] = [arg("username"), arg("password")];
         if (username === undefined
             || password === undefined
             || username.includes("\n")
@@ -62,7 +62,7 @@ export async function handleForm(
     }
 
     if (url.pathname === "/login" && !authorized) {
-    const [ username, password ] = [ arg("username"), arg("password") ];
+        const [username, password] = [arg("username"), arg("password")];
         if (username === undefined || password === undefined) {
             res.writeHead(303, { "Location": "/login?error=0&username=" + encodeURIComponent(username ?? "") });
             res.end();
@@ -128,11 +128,11 @@ export async function handleForm(
             fileId,
             user.userId,
             file.originalFilename
-                ?? "unknown",
+            ?? "unknown",
             file.mimetype
-                || mime.getType(
-                    file.originalFilename
-                        ?? ""
+            || mime.getType(
+                file.originalFilename
+                ?? ""
             ),
             [],
             file.size,

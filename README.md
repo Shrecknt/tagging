@@ -4,10 +4,10 @@ A really bad file host
 
 ## Usage
 
-Although there is currently no docker container, it will likely be added in the future
-
 -   `git clone` the repository
--   Make a `.env` file and configure it to your liking
+-   Create a postgres database using the `postgres_setup.sql` setup script
+-   Make a `.env` file and configure using `.env.example` as a template
+-   Make a `options.json` file and configure it using `options.json.example` as a template
 -   Run `npm install` to install the required dependencies
 -   Build the project with `npm run build`
 -   Run `npm start` to start the webserver

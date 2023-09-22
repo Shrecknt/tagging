@@ -47,7 +47,7 @@ export class Session {
         const res = await client.query(`
             DELETE FROM usessions
                 WHERE sessionId = $1::TEXT;
-        `, [ this.sessionId ]);
+        `, [this.sessionId]);
     }
 
     toObject() {
@@ -88,7 +88,7 @@ export class Session {
         const res = await client.query(`
             SELECT * FROM usessions
                 WHERE sessionId = $1::TEXT;
-        `, [ sessionId ]);
+        `, [sessionId]);
         if (res.rowCount > 1) throw new Error("Found more than one session with given sessionId (what?)");
         if (res.rowCount === 0) return undefined;
         return Session.fromObject(res.rows[0]);
@@ -124,7 +124,7 @@ setInterval(async () => {
     const expiredSessions = (await client.query(`
         SELECT * FROM usessions
             WHERE expires < $1::BIGINT;
-    `, [ Date.now() ])).rows.map(Session.fromObject);
+    `, [Date.now()])).rows.map(Session.fromObject);
     for (let session of expiredSessions) {
         await session.delete();
     }

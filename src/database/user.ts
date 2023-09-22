@@ -43,7 +43,7 @@ export class User {
         const res = await client.query(`
             SELECT COUNT(*) FROM files
                 WHERE userid = $1::TEXT;
-        `, [ this.userId ]);
+        `, [this.userId]);
         if (res.rowCount !== 1) throw new Error("Error getting count");
         const row = res.rows[0];
         return row.count;
@@ -54,7 +54,7 @@ export class User {
         const res = await client.query(`
             SELECT filesize FROM files
                 WHERE userid = $1::TEXT;
-        `, [ this.userId ]);
+        `, [this.userId]);
         return res.rows.reduce((prev, cur) => prev + Number(cur.filesize), 0);
     }
 
@@ -100,7 +100,7 @@ export class User {
 
     static async fromUserId(userId: string) {
         const client = await useClient();
-        const res = await client.query("SELECT * FROM users WHERE userId = $1::TEXT;", [ userId ]);
+        const res = await client.query("SELECT * FROM users WHERE userId = $1::TEXT;", [userId]);
         if (res.rowCount > 1) throw new Error("Found more than one user with given user ID (what?)");
         if (res.rowCount < 1) return undefined;
         const user = User.fromObject(res.rows[0]);
@@ -110,7 +110,7 @@ export class User {
 
     static async fromUsername(username: string) {
         const client = await useClient();
-        const res = await client.query("SELECT * FROM users WHERE username ILIKE $1::TEXT;", [ username ]);
+        const res = await client.query("SELECT * FROM users WHERE username ILIKE $1::TEXT;", [username]);
         if (res.rowCount > 1) throw new Error("Found more than one user with given username (what?)");
         if (res.rowCount < 1) return undefined;
         const user = User.fromObject(res.rows[0]);
@@ -120,7 +120,7 @@ export class User {
 
     static async fromUserIp(ip: string) {
         const client = await useClient();
-        const res = await client.query("SELECT * FROM users WHERE $1::TEXT = ANY(ips);", [ ip ]);
+        const res = await client.query("SELECT * FROM users WHERE $1::TEXT = ANY(ips);", [ip]);
         const users = res.rows.map(User.fromObject);
         return users;
     }
@@ -132,7 +132,7 @@ export class User {
         setUsers(resUsers.reduce((a, b) => {
             a[b.userId] = b;
             return a;
-        }, {} as {[key: string]: User | undefined}));
+        }, {} as { [key: string]: User | undefined }));
     }
 
     static async getUsers() {

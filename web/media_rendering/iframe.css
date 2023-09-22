@@ -9,5 +9,5 @@ iframe {
     border: none;
     background-color: #ddd;
     color: black;
-    filter: invert( 100% );
+    filter: invert(100%);
 }

@@ -25,16 +25,18 @@ export async function handleWebsocketMessage(
     if (data.type === "search") {
         const tags = String(data.value ?? "").split(",").map(tag => tag.trim());
         const results = (await UserFile.fromTags(tags, Number((data as any).page) ?? 0, undefined, user));
-        const returnValue = { "type": "searchResults", "value": results.map(file => {
-            const res = file.toObject();
-            res.filesize = Number(res.filesize) as unknown as BigInt;
-            return res;
-        }), "query": data.value } as Packet;
+        const returnValue = {
+            "type": "searchResults", "value": results.map(file => {
+                const res = file.toObject();
+                res.filesize = Number(res.filesize) as unknown as BigInt;
+                return res;
+            }), "query": data.value
+        } as Packet;
         socket.send(JSON.stringify(returnValue));
     }
 
     if (data.type === "listenFile") {
-        const listener = (msg: string) => {};
+        const listener = (msg: string) => { };
         websocketEvents.on("message", listener);
         socket.once("close", () => {
             websocketEvents.removeListener("message", listener);
