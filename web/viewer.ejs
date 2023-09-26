@@ -45,7 +45,7 @@
     <%- `<source src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" type="${mimeType}" />` %>
     <%- `</video>` %>
     <% } else if (mimeType.startsWith("image/")) { %>
-    <%- `<img src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" alt="${fileName.replace(/"/g, "\\\"")}" />` %>
+    <%- `<img src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct" alt="${sanitizeParams(fileName)}" />` %>
     <% } else { %>
     <%- `<iframe src="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct"></iframe>` %>
     <% } %>
