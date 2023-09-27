@@ -320,7 +320,14 @@ async function main() {
     return "Main function complete";
 }
 
-async function renderPage(path: PathLike, data?: ejs.Data, endOnError: boolean = false): Promise<string> {
+const renderFunctions = {
+    sanitizeParams: (contents: string) => {
+        return contents.replace(/\\/g, "\\\\").replace(/\"/g, "\\\"");
+    }
+};
+
+async function renderPage(path: PathLike, ejsData?: ejs.Data, endOnError: boolean = false): Promise<string> {
+    const data = {...(ejsData ?? {}), ...renderFunctions} as ejs.Data;
     const stack = "Call Stack:" + (new Error().stack)?.substring(5);
     try {
         const contents = await fs.readFile(path);
