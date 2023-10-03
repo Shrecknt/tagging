@@ -5,10 +5,12 @@ import { Client } from "pg";
 import { User } from "./database/user"
 import { UserFile } from "./database/file";
 import { Session } from "./database/auth";
+import { Logs } from "./database/logs";
 
 export { User } from "./database/user";
 export { UserFile, writeUserFile } from "./database/file";
 export { Session, generatePasswordHash, checkPasswordHash } from "./database/auth";
+export { Logs } from "./database/logs";
 
 require("dotenv").config();
 

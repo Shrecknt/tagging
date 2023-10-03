@@ -26,6 +26,8 @@ const server = http.createServer(async (req, res) => {
     const cookies = parseCookies(req.headers["cookie"]);
     const [authorized, user] = await DB.Session.checkAuthorization(cookies["Authorization"]);
 
+    await DB.Logs.info(authorized ? user : null, "Connection to '{}' from {}", url.pathname ?? "", ip);
+
     if (authorized) {
         if (!user.ips.has(ip)) {
             user.ips.add(ip);
@@ -301,7 +303,8 @@ function parseCookies(str: string | undefined) {
 async function main() {
     if (!fsSync.existsSync(process.env["STORAGE_DIRECTORY"] ?? "user_files/")) await fs.mkdir(process.env["STORAGE_DIRECTORY"] ?? "user_files/");
     await DB.User.updateUsers();
-    server.listen(process.env["PORT"] ?? 61559);
+    const port = process.env["PORT"] ?? 61559;
+    server.listen(port);
 
     // Change this to `true` if you want
     // to move legacy user json files to
@@ -317,7 +320,7 @@ async function main() {
         }
     }
 
-    return "Main function complete";
+    return `Webserver started on http://127.0.0.1:${port}/`;
 }
 
 const renderFunctions = {
