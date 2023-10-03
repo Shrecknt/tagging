@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS usessions;
 DROP TABLE IF EXISTS files;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS logs;
 
 CREATE TABLE users (
 	userId TEXT NOT NULL,
@@ -38,4 +39,11 @@ CREATE TABLE usessions (
 		FOREIGN KEY(userId) 
 		REFERENCES users(userId),
     expires BIGINT NOT NULL
+);
+
+CREATE TABLE logs (
+	timestamp BIGINT NOT NULL,
+	userId TEXT,
+	logType TEXT NOT NULL,
+	contents TEXT NOT NULL
 );

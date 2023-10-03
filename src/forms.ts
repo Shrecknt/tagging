@@ -55,6 +55,9 @@ export async function handleForm(
         const hashedPassword = await DB.generatePasswordHash(password);
         let user = await new DB.User(username, hashedPassword).writeChanges();
         const sessionToken = (await DB.Session.createSession(user, 3600000)).sessionId;
+
+        await DB.Logs.info(user, "Account created from {}", ip);
+
         res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
         res.write("Account successfully created");
         res.end();
@@ -83,6 +86,8 @@ export async function handleForm(
         }
 
         const sessionToken = (await DB.Session.createSession(user, 3600000)).sessionId;
+
+        await DB.Logs.info(user, "Login from {}", ip);
 
         res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
         res.write("Sign in successful!");
@@ -142,6 +147,9 @@ export async function handleForm(
             null
         );
         await userFile.writeChanges();
+
+        await DB.Logs.info(user, "File '{}' uploaded from {}", file.originalFilename ?? "null", ip);
+
         return;
     }
 

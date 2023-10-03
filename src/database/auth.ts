@@ -33,7 +33,7 @@ export class Session {
     }
 
     isValid() {
-        return Date.now() > this.expires;
+        return Date.now() < this.expires;
     }
 
     async getUser(): Promise<User> {
@@ -103,7 +103,7 @@ export class Session {
         const session = await Session.fromSessionId(token);
         if (session === undefined) return [false, undefined];
         const user = await session.getUser();
-        if (session.expires < Date.now()) {
+        if (!session.isValid()) {
             await session.delete();
             return [false, user];
         }
