@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <% const username = url.query; %>
+    <% const user = await DB.User.fromUsername(username); %>
+    <% if (user === undefined) { %>
+        <title>Unknown User</title>
+    <% } else { %>
+        <title><%= user.username %></title>
+    <% } %>
+</head>
+<body>
+    <% if (user === undefined) { %>
+        <h1>Unknown User</h1>
+    <% } else { %>
+        <h1><%= user.username %></h1>
+    <% } %>
+</body>
+</html>

@@ -1,12 +1,11 @@
 import http from "node:http";
 import fs from "node:fs/promises";
-import fsSync, { PathLike, link } from "node:fs";
+import fsSync, { PathLike } from "node:fs";
 import path from "node:path";
 import URL from "node:url";
 import WebSocket from "ws";
 import mime from "mime";
-import formidable from "formidable";
-import ejs, { render } from "ejs";
+import ejs from "ejs";
 import { minify } from "html-minifier";
 import { handleWebsocketMessage, websocketEvents } from "./websocket";
 import * as DB from "./database";
@@ -73,6 +72,11 @@ const server = http.createServer(async (req, res) => {
     if (authorized) {
         let success = await handleAuthorizedRequest(req, res, ip, cookies, user);
         if (success) return;
+
+        if (user.permissionLevel >= 5) {
+            success = await handleAdminRequest(req, res, ip, cookies, user);
+            if (success) return;
+        }
     }
 
     {
@@ -164,6 +168,38 @@ async function handleAuthorizedRequest(
 
     let file: Buffer | string = requestPath.endsWith(".ejs")
         ? await renderPage(requestPath, { ip, cookies, user, url, options })
+        : await fs.readFile(requestPath);
+    const mimeType = requestPath.endsWith(".ejs") ? "text/html" : mime.getType(requestPath);
+    res.writeHead(200, { "Content-Type": mimeType ?? "text/plain" });
+    res.write(file);
+    res.end();
+    return true;
+}
+
+async function handleAdminRequest(
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+    ip: string,
+    cookies: { [key: string]: string | undefined },
+    user: DB.User
+): Promise<boolean> {
+    if (user.permissionLevel < 5) return false;
+    const url = URL.parse(req.url ?? "/");
+    if (url.pathname === "/") url.pathname = "/index.ejs";
+    const adminWebPath = path.resolve("admin_web/");
+    let requestPath = path.join(adminWebPath, url.pathname ?? "/index.ejs");
+    if (!/\.[a-zA-Z]+/g.test(requestPath)) requestPath += ".ejs";
+    if (!requestPath.startsWith(adminWebPath)) {
+        return false;
+    }
+    try {
+        if (!(await fs.stat(requestPath)).isFile()) {
+            return false;
+        }
+    } catch (e) { return false; }
+
+    let file: Buffer | string = requestPath.endsWith(".ejs")
+        ? await renderPage(requestPath, { ip, cookies, user, url, options, DB })
         : await fs.readFile(requestPath);
     const mimeType = requestPath.endsWith(".ejs") ? "text/html" : mime.getType(requestPath);
     res.writeHead(200, { "Content-Type": mimeType ?? "text/plain" });
