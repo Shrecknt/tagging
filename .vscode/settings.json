@@ -5,5 +5,9 @@
         "editor.defaultFormatter": "j69.ejs-beautify"
     },
     "editor.formatOnSave": true,
-    "editor.defaultFormatter": "vscode.emmet"
+    "editor.defaultFormatter": "vscode.emmet",
+    "cSpell.words": [
+        "generatesession",
+        "userid"
+    ]
 }

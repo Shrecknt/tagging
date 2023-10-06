@@ -44,6 +44,18 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    if (url.pathname?.startsWith("/api/")) {
+        try {
+            let success = await handleApiRequest(req, res, ip, cookies, user, authorized, url);
+            if (success) return;
+        } catch (err) {
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.write(JSON.stringify({ "error": String(err), "data": {} }, null, 4));
+            res.end();
+            return;
+        }
+    }
+
     if (req.method === "POST") {
         const stack = "Call Stack:" + (new Error().stack)?.substring(5);
         try {
@@ -57,26 +69,14 @@ const server = http.createServer(async (req, res) => {
         }
     }
 
-    if (url.pathname?.startsWith("/api/")) {
-        try {
-            let success = await handleApiRequest(req, res, ip, cookies, user, authorized, url);
-            if (success) return;
-        } catch (err) {
-            res.writeHead(200, { "Content-Type": "application/json" });
-            res.write(JSON.stringify({ "error": String(err), "data": {} }, null, 4));
-            res.end();
-            return;
-        }
+    if (authorized && user.permissionLevel >= 5) {
+        let success = await handleAdminRequest(req, res, ip, cookies, user);
+        if (success) return;
     }
 
     if (authorized) {
         let success = await handleAuthorizedRequest(req, res, ip, cookies, user);
         if (success) return;
-
-        if (user.permissionLevel >= 5) {
-            success = await handleAdminRequest(req, res, ip, cookies, user);
-            if (success) return;
-        }
     }
 
     {

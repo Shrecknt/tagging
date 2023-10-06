@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <% const userQuery = url.query; %>
-    <% const user = (await DB.User.fromUsername(userQuery)) ?? (await DB.User.fromUserId(userQuery)); %>
-    <% if (user === undefined) { %>
+    <% const queryUser = (await DB.User.fromUsername(userQuery)) ?? (await DB.User.fromUserId(userQuery)); %>
+    <% if (queryUser === undefined) { %>
         <title>Unknown User</title>
     <% } else { %>
-        <title><%= user.username %></title>
+        <title><%= queryUser.username %></title>
     <% } %>
 
     <style>
@@ -24,6 +24,10 @@
             resize: none;
             outline: none;
         }
+
+        fieldset {
+            width: 512px;
+        }
     </style>
 </head>
 <body>
@@ -33,21 +37,38 @@
 
     <input type="search" id="search" value="<%- sanitizeParams(userQuery ?? "") %>">
 
-    <% if (user === undefined) { %>
+    <% if (queryUser === undefined) { %>
         <h1>Unknown User</h1>
     <% } else { %>
-        <h1><%= user.username %></h1>
-        User ID: <%= user.userId %><br />
-        Frozen: <%= user.frozen %><br />
-        Permission Level: <%= user.permissionLevel %><br />
-        <details>
-            <summary>Known IPs:</summary>
-            <textarea readonly><%= [...user.ips].join("\n") %></textarea>
-        </details>
-        <details>
-            <summary>Hashed Password:</summary>
-            <textarea readonly><%= user.password %></textarea>
-        </details>
+        <h1><%= queryUser.username %></h1>
+        User ID: <%= queryUser.userId %><br />
+        Frozen: <%= queryUser.frozen %> <button>Toggle</button><br />
+        Permission Level: <%= queryUser.permissionLevel %>
+        <% if (queryUser.permissionLevel < user.permissionLevel) { %>
+            <input type="number" min="0" max="<%- user.permissionLevel - 1 %>" value="<%- queryUser.permissionLevel %>">
+        <% } else { %>
+            <input readonly type="number" value="<%- queryUser.permissionLevel %>">
+        <% } %><br />
+        Files uploaded: <%= await queryUser.getFileCount() %><br />
+        Cumulative File Size: <%= Math.floor((await queryUser.cumulativeFileSize()) / 10000) / 100 %> MB<br />
+        <% if (queryUser.permissionLevel < user.permissionLevel) { %>
+            <fieldset>
+                <legend>Danger Zone</legend>
+                <details>
+                    <summary>Known IPs:</summary>
+                    <textarea readonly><%= [...queryUser.ips].join("\n") %></textarea>
+                </details>
+                <% if (user.permissionLevel > Infinity) { %>
+                    <details>
+                        <summary>Hashed Password:</summary>
+                        <textarea readonly><%= queryUser.password %></textarea>
+                    </details>
+                <% } %>
+                Session Generator:
+                <button onclick="generateSession()">Generate URL</button>
+                <input readonly id="sessionUrl" type="url" placeholder="<%- `https://${options.domain ?? "t.shrecked.dev"}/api/session/???` %>">
+            </fieldset>
+        <% } %>
     <% } %>
 
     <script>
@@ -60,6 +81,24 @@
         });
         searchElem.focus();
         searchElem.select();
+
+        function api(path, data) {
+            if (typeof data === "object") data = JSON.stringify(data);
+            return fetch(`${window.location.origin}/api/${path}`, { method: "POST", body: data });
+        }
+
+        async function generateSession() {
+            const session = await api("/admin/generateSession", { userId: "<%- queryUser.userId %>" });
+            const sessionJson = await session.json();
+            // console.log("session", sessionJson);
+            if (sessionJson.error) {
+                console.error(sessionJson.error);
+                return;
+            }
+            const sessionUrl = sessionJson.data.sessionId;
+            const sessionUrlElement = document.getElementById("sessionUrl");
+            sessionUrlElement.value = `https://<%- options.domain ?? "t.shrecked.dev" %>/api/session/${sessionUrl}`;
+        }
     </script>
 </body>
 </html>

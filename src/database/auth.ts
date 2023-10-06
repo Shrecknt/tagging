@@ -69,7 +69,7 @@ export class Session {
         if (obj.userId ?? obj.userid === undefined) throw new Error("Must provide either `userId` or `userid`");
         return new Session(
             obj.sessionId ?? obj.sessionid,
-            obj.expires,
+            Number(obj.expires),
             obj.userId ?? obj.userid
         );
     }

@@ -58,7 +58,7 @@ export async function handleForm(
 
         await DB.Logs.info(user, "Account created from {}", ip);
 
-        res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
+        res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Path=/; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
         res.write("Account successfully created");
         res.end();
         return;
@@ -89,7 +89,7 @@ export async function handleForm(
 
         await DB.Logs.info(user, "Login from {}", ip);
 
-        res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
+        res.writeHead(303, { "Location": "/profile", "Set-Cookie": `Authorization=${encodeURIComponent(sessionToken)}; SameSite=Strict; Secure; HttpOnly; Path=/; Expires=${new Date(Date.now() + 3600000).toUTCString()}` });
         res.write("Sign in successful!");
         res.end();
         return;

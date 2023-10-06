@@ -21,22 +21,38 @@ export async function handleApiRequest(
         let split = str.split("=");
         return [split[0], split.splice(1).join("=")];
     }).reduce((accum: any, val) => {
-        accum[decodeURIComponent(val[0])] = decodeURIComponent(val[1]);
+        accum[decodeURIComponent(val[0]).toLowerCase()]
+            = decodeURIComponent(val[1]).toLowerCase();
         return accum;
     }, {})) ?? {};
-    function arg(argName: string): string {
-        if (query[argName] !== undefined) return query[argName];
+    function nullishArg(argName: string): string | null {
+        if (query[argName.toLowerCase()] !== undefined) return query[argName.toLowerCase()];
         const getArg = args[argName];
         if (typeof getArg === "string") {
             return getArg;
         }
-        throw `Missing argument '${argName}'`;
+        return null;
+    }
+    function arg(argName: string): string {
+        const result = nullishArg(argName);
+        if (result === null) throw `Missing argument '${argName}'`;
+        return result;
     }
 
     const head = (res: http.ServerResponse) => res.writeHead(200, { "Content-Type": "application/json" });
     const write = (res: http.ServerResponse, data: any) => res.write(JSON.stringify({ "error": "", "data": data }, (key, value) => (typeof value === "bigint" ? value.toString() : value), 4));
 
     switch (apiPath[0].toLowerCase()) {
+        case "session":
+            const sessionId = apiPath[1] ?? arg("sessionID");
+            const expires = (await DB.Session.fromSessionId(sessionId))?.expires as number;
+            res.writeHead(303, {
+                "Location": "/profile",
+                "Set-Cookie": `Authorization=${encodeURIComponent(sessionId)}; SameSite=Strict; Secure; HttpOnly; Path=/; Expires=${new Date(expires).toUTCString()}`
+            });
+            res.write("Account successfully created");
+            res.end();
+            return true;
         case "user":
             let user;
             let userObj;
@@ -92,6 +108,22 @@ export async function handleApiRequest(
                     return true;
             }
             break;
+    }
+
+    if (authorized && user !== undefined && user.permissionLevel >= 5) {
+        if (apiPath[0].toLowerCase() === "admin") {
+            switch (apiPath[1].toLowerCase()) {
+                case "generatesession":
+                    const sessionUser = await DB.User.fromUserId(arg("userId"));
+                    if (sessionUser === undefined) throw "No user with given user ID";
+                    const expiresIn = Number(nullishArg("expiresIn")) || 3600000;
+                    const session = await DB.Session.createSession(sessionUser, expiresIn);
+                    head(res);
+                    write(res, { sessionId: session.sessionId });
+                    res.end();
+                    return true;
+            }
+        }
     }
 
     res.writeHead(404, { "Content-Type": "application/json" });
