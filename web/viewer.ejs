@@ -2,13 +2,13 @@
 <html lang="en" prefix="og: https://ogp.me/ns#">
 
 <head>
-    <%- `<meta property="og:url" content="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}" />` %>
-    <%- `<meta property="og:site_name" content="${options.siteName ?? "tagging.shrecked.dev"}" />` %>
+    <%- `<meta property="og:url" content="https://${options.domain}/file/${fileUserId}/${fileId}" />` %>
+    <%- `<meta property="og:site_name" content="${options.siteName}" />` %>
     <%- `<meta property="og:title" content="${userFile.title.replace(/"/g, "\\\"")}" />` %>
     <%- `<meta property="og:description" content="${(userFile.fileSize / 1000000n).toString()} MB" />` %>
     <%- `<meta property="theme-color" content="#007AFF" />` %>
 
-    <% const directUrl = `https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}?direct` %>
+    <% const directUrl = `https://${options.domain}/file/${fileUserId}/${fileId}?direct` %>
 
     <% if (mimeType.startsWith("video/")) { %>
     <%- `<meta property="og:video" content="${directUrl}" />` %>
@@ -56,10 +56,10 @@
         <%- `<a href="${directUrl}" download>Download</a>` %>
         <% if (!isShortUrl) { %>
         <% if (shortUrl !== null) { %>
-        <%- `<a href="https://${options.domain ?? "t.shrecked.dev"}/f/${shortUrl}">Short URL</a>` %>
+        <%- `<a href="https://${options.domain}/f/${shortUrl}">Short URL</a>` %>
         <% } %>
         <% } else { %>
-        <%- `<a href="https://${options.domain ?? "t.shrecked.dev"}/file/${fileUserId}/${fileId}">Long URL</a>` %>
+        <%- `<a href="https://${options.domain}/file/${fileUserId}/${fileId}">Long URL</a>` %>
         <% } %>
     </div>
 

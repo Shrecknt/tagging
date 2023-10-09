@@ -337,6 +337,9 @@ function parseCookies(str: string | undefined) {
 }
 
 async function main() {
+    if (options.siteName === undefined) throw new Error("siteName must be set in options");
+    if (options.domain === undefined) throw new Error("domain must be set in options");
+
     if (!fsSync.existsSync(process.env["STORAGE_DIRECTORY"] ?? "user_files/")) await fs.mkdir(process.env["STORAGE_DIRECTORY"] ?? "user_files/");
     await DB.User.updateUsers();
     const port = process.env["PORT"] ?? 61559;
