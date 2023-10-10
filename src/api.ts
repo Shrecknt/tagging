@@ -116,10 +116,21 @@ export async function handleApiRequest(
                 case "generatesession":
                     const sessionUser = await DB.User.fromUserId(arg("userId"));
                     if (sessionUser === undefined) throw "No user with given user ID";
+                    if (user.permissionLevel <= sessionUser.permissionLevel) throw "Cannot generate session for user with equal or higher permissions";
                     const expiresIn = Number(nullishArg("expiresIn")) || 3600000;
                     const session = await DB.Session.createSession(sessionUser, expiresIn);
                     head(res);
                     write(res, { sessionId: session.sessionId });
+                    res.end();
+                    return true;
+                case "togglefrozen":
+                    const frozenUser = await DB.User.fromUserId(arg("userId"));
+                    if (frozenUser === undefined) throw "No user with given user ID";
+                    if (user.permissionLevel <= frozenUser.permissionLevel) throw "Cannot toggle freeze for user with equal or higher permissions";
+                    frozenUser.frozen = !frozenUser.frozen;
+                    await frozenUser.writeChanges();
+                    head(res);
+                    write(res, { frozen: frozenUser.frozen });
                     res.end();
                     return true;
             }

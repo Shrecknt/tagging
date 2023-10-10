@@ -42,7 +42,7 @@
     <% } else { %>
         <h1><%= queryUser.username %></h1>
         User ID: <%= queryUser.userId %><br />
-        Frozen: <%= queryUser.frozen %> <button>Toggle</button><br />
+        Frozen: <span id="frozen"><%= queryUser.frozen %></span> <button onclick="toggleFrozen()" <%- queryUser.permissionLevel >= user.permissionLevel ? "disabled" : "" %>>Toggle</button><br />
         Permission Level: <%= queryUser.permissionLevel %>
         <% if (queryUser.permissionLevel < user.permissionLevel) { %>
             <input type="number" min="0" max="<%- user.permissionLevel - 1 %>" value="<%- queryUser.permissionLevel %>">
@@ -82,22 +82,33 @@
         searchElem.focus();
         searchElem.select();
 
-        function api(path, data) {
+        async function api(path, data) {
             if (typeof data === "object") data = JSON.stringify(data);
-            return fetch(`${window.location.origin}/api/${path}`, { method: "POST", body: data });
+            const res = await fetch(`${window.location.origin}/api/${path}`, { method: "POST", body: data });
+            const resJson = await res.json();
+            return resJson;
         }
 
         async function generateSession() {
             const session = await api("/admin/generateSession", { userId: "<%- queryUser.userId %>" });
-            const sessionJson = await session.json();
-            // console.log("session", sessionJson);
-            if (sessionJson.error) {
-                console.error(sessionJson.error);
+            if (session.error) {
+                console.error(session.error);
                 return;
             }
-            const sessionUrl = sessionJson.data.sessionId;
+            const sessionUrl = session.data.sessionId;
             const sessionUrlElement = document.getElementById("sessionUrl");
             sessionUrlElement.value = `https://<%- options.domain %>/api/session/${sessionUrl}`;
+        }
+
+        async function toggleFrozen() {
+            const frozen = await api("/admin/toggleFrozen", { userId: "<%- queryUser.userId %>" });
+            if (frozen.error) {
+                console.error(frozen.error);
+                return;
+            }
+            const isFrozen = frozen.data.frozen;
+            const frozenElement = document.getElementById("frozen");
+            frozenElement.innerText = String(isFrozen);
         }
     </script>
 </body>

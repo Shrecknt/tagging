@@ -368,6 +368,7 @@ const renderFunctions = {
     }
 };
 
+const shouldMinify = true;
 async function renderPage(path: PathLike, ejsData?: ejs.Data, endOnError: boolean = false): Promise<string> {
     const data = {...(ejsData ?? {}), ...renderFunctions} as ejs.Data;
     const stack = "Call Stack:" + (new Error().stack)?.substring(5);
@@ -375,9 +376,9 @@ async function renderPage(path: PathLike, ejsData?: ejs.Data, endOnError: boolea
         const contents = await fs.readFile(path);
         const result = await ejs.render(contents.toString(), data, { async: true });
         const minified = minify(result, {
-            collapseWhitespace: true,
-            minifyJS: true,
-            minifyCSS: true,
+            collapseWhitespace: shouldMinify,
+            minifyJS: shouldMinify,
+            minifyCSS: shouldMinify,
         });
         return minified;
     } catch (err) {
