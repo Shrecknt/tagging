@@ -395,6 +395,7 @@ async function renderErrorPage(path: PathLike, data: ejs.Data | undefined, err: 
     if (typeof data === "object") {
         data["ip"] = "[REDACTED]";
         data["cookies"] = "[REDACTED]";
+        if (data["DB"] !== undefined) data["DB"] = "[REDACTED]";
         if (data["user"] !== undefined) {
             data["user"]["password"] = "[REDACTED]";
         }

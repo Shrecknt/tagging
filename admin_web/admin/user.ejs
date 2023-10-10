@@ -87,8 +87,10 @@
             const res = await fetch(`${window.location.origin}/api/${path}`, { method: "POST", body: data });
             const resJson = await res.json();
             return resJson;
-        }
-
+    }
+    </script>
+    <% if (queryUser !== undefined) { %>
+    <script>
         async function generateSession() {
             const session = await api("/admin/generateSession", { userId: "<%- queryUser.userId %>" });
             if (session.error) {
@@ -111,5 +113,6 @@
             frozenElement.innerText = String(isFrozen);
         }
     </script>
+    <% } %>
 </body>
 </html>
