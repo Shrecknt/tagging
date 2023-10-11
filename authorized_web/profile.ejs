@@ -13,6 +13,9 @@
     <h1>Profile</h1>
     <a href="/upload">Upload Files</a>
     <a href="/search">Search Files</a>
+    <% if (user.permissionLevel >= 5) { %>
+        <a href="/admin">Admin Panel</a>
+    <% } %>
 </body>
 
 </html>

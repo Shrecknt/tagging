@@ -3,9 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin</title>
+    <title>Admin Panel</title>
+
+    <link rel="stylesheet" href="/purecss/pure-min.css">
+    <style>
+        textarea {
+            margin: 16px;
+            margin-left: 32px;
+            width: calc( 100% - 64px );
+            height: 256px;
+            resize: none;
+            outline: none;
+        }
+
+        .container {
+            max-width: 640px;
+            margin: auto;
+            margin-top: 32px;
+            padding: 0 32px;
+        }
+
+        body {
+            background-color: #222;
+            color: #eee;
+        }
+
+        input, button {
+            filter: invert(90%);
+        }
+
+        .details {
+            color: gray;
+            margin-left: 32px;
+            max-width: 320px;
+            margin-bottom: 16px;
+            margin-top: -4px;
+        }
+    </style>
 </head>
 <body>
-    
+    <div class="pure-form pure-form-aligned container">
+        <noscript>
+            This page requires JavaScript
+        </noscript>
+        <h1 style="text-align: center;">Admin Panel</h1>
+        <hr />
+        <details>
+            <summary style="color: lightgray;">User Search</summary>
+            <div class="pure-control-group">
+                <label for="search">Username / ID</label>
+                <input class="pure-input-rounded" type="search" id="search">
+                <button type="submit" class="pure-button" onclick="search()">Search</button>
+            </div>
+            <div class="details">
+                Search for a user given their username or user ID
+            </div>
+        </details>
+        <details>
+            <summary style="color: lightgray;">Frozen by Default</summary>
+            <div class="pure-control-group">
+                <label for="default-frozen">Enabled</label>
+                <span id="default-frozen"><%= true %></span>
+                <button class="pure-button" onclick="toggleFrozen()">Toggle</button>
+            </div>
+            <div class="details">
+                Require an admin to unfreeze accounts when they are created to avoid spam
+            </div>
+        </details>
+        <details>
+            <summary style="color: lightgray;">Upload Limit</summary>
+            <div class="pure-control-group">
+                <label for="file-count">File Count</label>
+                <span id="file-count"><%= -1 %></span>
+                <input type="number" value="-1" />
+            </div>
+            <div class="pure-control-group">
+                <label for="file-size">File Size</label>
+                <span id="file-size"><%= -1 %></span>
+                <input type="number" value="-1" />
+            </div>
+            <div class="details">
+                Limit the default number of files a user is allowed to upload and the amount of disk space allocated per user
+            </div>
+        </details>
+    </div>
+
+    <script>
+        if (window.location.search !== "") window.location.search = "";
+        const searchElem = document.getElementById("search");
+        function search() {
+            window.location = `${window.location.origin}${window.location.pathname}/user?${searchElem.value}`;
+        }
+        searchElem.addEventListener("keypress", (ev) => {
+            if (ev.key === "Enter") search();
+        });
+    </script>
 </body>
 </html>
