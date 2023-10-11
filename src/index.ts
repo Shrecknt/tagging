@@ -15,7 +15,7 @@ import { handleForm } from "./forms";
 
 require("dotenv").config();
 
-const options = require("../options.json");
+let options: {[key: string]: string | undefined} = {};
 
 const server = http.createServer(async (req, res) => {
     const url = URL.parse(req.url ?? "/");
@@ -336,7 +336,18 @@ function parseCookies(str: string | undefined) {
     }, {} as { [key: string]: string | undefined });
 }
 
+export async function reloadOptions() {
+    options = JSON.parse((await fs.readFile("options.json")).toString());
+}
+
 async function main() {
+    if (!fsSync.existsSync("options.json")) {
+        console.log("Options not found, copying example config");
+        await fs.copyFile("options.json.example", "options.json");
+    }
+
+    await reloadOptions();
+
     if (options.siteName === undefined) throw new Error("siteName must be set in options");
     if (options.domain === undefined) throw new Error("domain must be set in options");
 
@@ -344,20 +355,6 @@ async function main() {
     await DB.User.updateUsers();
     const port = process.env["PORT"] ?? 61559;
     server.listen(port);
-
-    // Change this to `true` if you want
-    // to move legacy user json files to
-    // a database.
-    const convertOldUsers = false;
-    if (convertOldUsers) {
-        const oldUsersDir = await fs.readdir("users");
-        for (let file of oldUsersDir) {
-            const contents = JSON.parse((await fs.readFile(path.join("users/", file))).toString());
-            const user = DB.User.fromObject(contents);
-            console.log(user);
-            await user.writeChanges();
-        }
-    }
 
     return `Webserver started on http://127.0.0.1:${port}/`;
 }

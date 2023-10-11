@@ -11,73 +11,96 @@
         <title><%= queryUser.username %></title>
     <% } %>
 
+    <link rel="stylesheet" href="/purecss/pure-min.css">
     <style>
-        input[type=search] {
-            width: 512px;
-            height: 32px;
-            font-size: 24px;
-        }
-
         textarea {
-            width: 512px;
+            margin: 16px;
+            margin-left: 32px;
+            width: calc( 100% - 64px );
             height: 256px;
             resize: none;
             outline: none;
         }
 
-        fieldset {
-            width: 512px;
+        .container {
+            width: 640px;
+            margin: auto;
+            margin-top: 32px;
         }
     </style>
 </head>
 <body>
-    <noscript>
-        This page requires JavaScript
-    </noscript>
+    <div class="pure-form pure-form-aligned container">
+        <noscript>
+            This page requires JavaScript
+        </noscript>
 
-    <input type="search" id="search" value="<%- sanitizeParams(userQuery ?? "") %>">
+        <input class="pure-input-rounded" type="search" id="search" value="<%- sanitizeParams(userQuery ?? "") %>">
+        <button type="submit" class="pure-button" onclick="search()">Search</button>
 
-    <% if (queryUser === undefined) { %>
-        <h1>Unknown User</h1>
-    <% } else { %>
-        <h1><%= queryUser.username %></h1>
-        User ID: <%= queryUser.userId %><br />
-        Frozen: <span id="frozen"><%= queryUser.frozen %></span> <button onclick="toggleFrozen()" <%- queryUser.permissionLevel >= user.permissionLevel ? "disabled" : "" %>>Toggle</button><br />
-        Permission Level: <%= queryUser.permissionLevel %>
-        <% if (queryUser.permissionLevel < user.permissionLevel) { %>
-            <input type="number" min="0" max="<%- user.permissionLevel - 1 %>" value="<%- queryUser.permissionLevel %>">
+        <% if (queryUser === undefined) { %>
+            <h1 style="text-align: center;">Unknown User</h1>
+            <hr />
         <% } else { %>
-            <input readonly type="number" value="<%- queryUser.permissionLevel %>">
-        <% } %><br />
-        Files uploaded: <%= await queryUser.getFileCount() %><br />
-        Cumulative File Size: <%= Math.floor((await queryUser.cumulativeFileSize()) / 10000) / 100 %> MB<br />
-        <% if (queryUser.permissionLevel < user.permissionLevel) { %>
-            <fieldset>
-                <legend>Danger Zone</legend>
-                <details>
-                    <summary>Known IPs:</summary>
-                    <textarea readonly><%= [...queryUser.ips].join("\n") %></textarea>
-                </details>
-                <% if (user.permissionLevel > Infinity) { %>
+            <% const hasGreaterPermissions = queryUser.permissionLevel < user.permissionLevel; %>
+            <h1 style="text-align: center;"><%= queryUser.username %></h1>
+            <hr />
+            <div class="pure-control-group">
+                <label for="user-id">User ID</label>
+                <span id="user-id"><%= queryUser.userId %></span>
+            </div>
+            <div class="pure-control-group">
+                <label for="frozen">Frozen</label>
+                <span id="frozen"><%= queryUser.frozen %></span>
+                <button class="pure-button" onclick="toggleFrozen()" <%- !hasGreaterPermissions ? "disabled" : "" %>>Toggle</button>
+            </div>
+            <div class="pure-control-group">
+                <label for="permission-level">Permission Level</label>
+                <span id="permission-level"><%= queryUser.permissionLevel %></span>
+                <% if (queryUser.permissionLevel < user.permissionLevel) { %>
+                    <input type="number" min="0" max="<%- user.permissionLevel - 1 %>" value="<%- queryUser.permissionLevel %>">
+                <% } else { %>
+                    <input readonly type="number" value="<%- queryUser.permissionLevel %>">
+                <% } %><br />
+            </div>
+            <div class="pure-control-group">
+                <label for="file-count">Files Uploaded</label>
+                <span id="file-count"><%= await queryUser.getFileCount() %></span>
+            </div>
+            <div class="pure-control-group">
+                <label for="file-size">Cumulative File Size</label>
+                <span id="file-size"><%= Math.floor((await queryUser.cumulativeFileSize()) / 10000) / 100 %> MB</span>
+            </div>
+            <% if (queryUser.permissionLevel < user.permissionLevel) { %>
+                <fieldset>
+                    <legend>&#9888; Danger Zone</legend>
                     <details>
-                        <summary>Hashed Password:</summary>
-                        <textarea readonly><%= queryUser.password %></textarea>
+                        <summary>Known IPs</summary>
+                        <textarea readonly><%= [...queryUser.ips].join("\n") %></textarea>
                     </details>
-                <% } %>
-                Session Generator:
-                <button onclick="generateSession()">Generate URL</button>
-                <input readonly id="sessionUrl" type="url" placeholder="<%- `https://${options.domain}/api/session/???` %>">
-            </fieldset>
+                    <% if (user.permissionLevel > Infinity) { %>
+                        <details>
+                            <summary>Hashed Password:</summary>
+                            <textarea readonly><%= queryUser.password %></textarea>
+                        </details>
+                    <% } %>
+                    <div class="pure-control-group">
+                        <label for="session-generator">Session Generator</label>
+                        <button id="session-generator" class="pure-button" onclick="generateSession()">Generate URL</button>
+                        <input readonly id="sessionUrl" type="url" placeholder="<%- `https://${options.domain}/api/session/???` %>">
+                    </div>
+                </fieldset>
+            <% } %>
         <% } %>
-    <% } %>
+    </div>
 
     <script>
         const searchElem = document.getElementById("search");
+        function search() {
+            window.location = `${window.location.origin}${window.location.pathname}?${searchElem.value}`;
+        }
         searchElem.addEventListener("keypress", (ev) => {
-            if (ev.key === "Enter") {
-                console.log(window.location);
-                window.location = `${window.location.origin}${window.location.pathname}?${searchElem.value}`;
-            }
+            if (ev.key === "Enter") search();
         });
         searchElem.focus();
         searchElem.select();
