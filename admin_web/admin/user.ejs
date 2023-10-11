@@ -23,9 +23,19 @@
         }
 
         .container {
-            width: 640px;
+            max-width: 640px;
             margin: auto;
             margin-top: 32px;
+            padding: 0 32px;
+        }
+
+        body {
+            background-color: #222;
+            color: #eee;
+        }
+
+        input, button {
+            filter: invert(90%);
         }
     </style>
 </head>
@@ -73,7 +83,7 @@
             </div>
             <% if (queryUser.permissionLevel < user.permissionLevel) { %>
                 <fieldset>
-                    <legend>&#9888; Danger Zone</legend>
+                    <legend style="color: gray;">&#9888; Danger Zone</legend>
                     <details>
                         <summary>Known IPs</summary>
                         <textarea readonly><%= [...queryUser.ips].join("\n") %></textarea>
